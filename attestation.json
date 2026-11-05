@@ -1,0 +1,9 @@
+{
+  "pluginId": "neodex.neonrush",
+  "repo": "NDesumeur/neodex-plugin-neonrush",
+  "version": "1.0.0",
+  "sha256": "314dc2f2e93f1a3d487187107a47e3c765fcbac8a87f65cae3ce98c8978c7ff2",
+  "approvedAt": "2026-11-05T09:31:28.549Z",
+  "neobase": ">=4.0.0",
+  "signature": "4tiP0uynYX4UL0BWJPqGBFbEEluEsE+cuXF9wQQ0XzNBk/XJQ2HvprGHzXoaxIipma2FET/7gnDFBprGM6YLDg=="
+}

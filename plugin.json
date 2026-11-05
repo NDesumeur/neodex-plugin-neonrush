@@ -1,0 +1,20 @@
+{
+  "id": "neodex.neonrush",
+  "name": "Néon Rush",
+  "version": "1.0.0",
+  "author": "NDesumeur",
+  "description": "Course sans fin sur trois voies dans une ville néon : saute les barrières, glisse sous les panneaux, change de voie avant le métro, ramasse les pièces.",
+  "icon": "icon.png",
+  "entry": "index.js",
+  "view": "neonrush",
+  "neobase": ">=4.0.0",
+  "type": "app",
+  "category": "Jeux",
+  "mobile": false,
+  "system": false,
+  "dependencies": {},
+  "sdk": "2.1.0",
+  "permissions": [
+    "storage"
+  ]
+}
