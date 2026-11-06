@@ -1,7 +1,7 @@
 {
   "id": "neodex.neonrush",
   "name": "Néon Rush",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": "NDesumeur",
   "description": "Course sans fin sur trois voies dans une ville néon : saute les barrières, glisse sous les panneaux, change de voie avant le métro, ramasse les pièces.",
   "icon": "icon.png",
