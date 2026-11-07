@@ -314,7 +314,7 @@ function gameLoop(st, appKey, update, draw) {
   st.raf = requestAnimationFrame(frame);
 }
 function gameText(g, w, lines, y0) {  // lignes centrées en police pixel, sur une bande sombre
-  g.fillStyle = 'rgba(11,3,28,.72)'; g.fillRect(0, y0 - 14, w, lines.length * 14 + 14);
+  g.fillStyle = 'rgba(7,2,26,.88)'; g.fillRect(0, y0 - 14, w, lines.length * 14 + 14); g.fillStyle = '#ff4fa8'; g.fillRect(0, y0 - 15, w, 1); g.fillRect(0, y0 + lines.length * 14, w, 1);
   lines.forEach(([text, color, size], i) => PXK.fill(g, text, w / 2, y0 + i * 14, color, PXK.scale(size), 'center'));
 }
 const px = (g, color, x, y, w = 1, h = 1) => { g.fillStyle = color; g.fillRect(Math.round(x), Math.round(y), w, h); };
@@ -325,7 +325,7 @@ const pxFont = (g, text, x, y, color, size = 8, align = 'left') => { const s = P
 const clock = s => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
 
 /* ---------- Néon Rush : route en fausse 3D (une ligne d'écran = une distance), objets triés du plus loin au plus proche ---------- */
-const NR = {W: 216, H: 288, HOR: 74, PZ: 1.6, LANE: 70, U: 3, FAR: 26};
+const NR = {W: 216, H: 288, HOR: 74, PZ: 1.6, LANE: 78, U: 3.4, FAR: 26};
 const nrs = gstore('neonrush', {runs: 0, coins: 0, bestCoins: 0, meters: 0});
 let nr = null;
 const nrCanvas = (w, h, fn) => { const c = el('canvas'); c.width = w; c.height = h; fn(c.getContext('2d')); return c; };
@@ -337,7 +337,7 @@ const NR_RUN = ['....kkkk....', '...khhhhk...', '..khhhhhhk..', '..khHhhhhk..', 
 const NR_JUMP = NR_RUN.slice(0, 13).concat(['..kppppppk..', '..kwwkkwwk..', '..kkk..kkk..', '............', '............']);
 const NR_DUCK = ['....kkkk....', '...khhhhk...', '..khhhhhhk..', '..khHhhhhk..', '.kkjjjjjjkk.', 'kjjjjJjjjjjk', 'kskjjjjjjksk', '.kppppppppk.', 'kwwk....kwwk', 'kkkk....kkkk'];
 function nrTrain(dark, lit) {
-  const P = dark ? {k: '#07021a', b: '#3a3f62', B: '#2a2e4a', g: '#0e3a4a', s: '#7a2a5a', l: '#5a5a3a'} : {k: '#07021a', b: '#9aa3c8', B: '#6a7298', g: '#2ac8e8', s: '#ff4fa8', l: lit ? '#fff4a0' : '#5a5a7a'};
+  const P = dark ? {k: '#07021a', b: '#6a72a8', B: '#4a5080', g: '#1a5a7a', s: '#c02a7a', l: '#ff4a5a'} : {k: '#07021a', b: '#d8dcf0', B: '#9aa3c8', g: '#2ac8e8', s: '#ff4fa8', l: lit ? '#fff4a0' : '#ff8a3a'};
   return nrCanvas(20, 26, g => {
     px(g, P.k, 2, 0, 16, 1); px(g, P.k, 0, 2, 20, 24); px(g, P.k, 1, 1, 18, 1); px(g, P.b, 1, 2, 18, 23); px(g, P.b, 2, 1, 16, 1); px(g, P.B, 1, 20, 18, 5);
     px(g, P.k, 3, 5, 14, 8); px(g, P.g, 4, 6, 12, 6); if (!dark) { px(g, '#c8f8ff', 5, 7, 3, 1); px(g, '#c8f8ff', 5, 8, 1, 2); }
@@ -346,9 +346,10 @@ function nrTrain(dark, lit) {
 }
 const NR_SPR = {
   run: nrRows(NR_RUN, NR_PAL), run2: nrRows(NR_RUN, NR_PAL, true), jump: nrRows(NR_JUMP, NR_PAL), duck: nrRows(NR_DUCK, NR_PAL),
-  barrier: nrCanvas(20, 12, g => { px(g, '#07021a', 0, 0, 20, 7); for (let y = 1; y < 6; y++) for (let x = 1; x < 19; x++) px(g, (x + y) % 6 < 3 ? '#ff4fa8' : '#fff4e0', x, y); for (const x of [2, 15]) { px(g, '#07021a', x, 7, 3, 5); px(g, '#8a8fb0', x + 1, 7, 1, 5); } }),
-  bar: nrCanvas(20, 22, g => { for (const x of [0, 17]) { px(g, '#07021a', x, 0, 3, 22); px(g, '#3fe0ff', x + 1, 0, 1, 22); } px(g, '#07021a', 0, 0, 20, 9); px(g, '#2a1050', 1, 1, 18, 7); px(g, '#3fe0ff', 1, 1, 18, 1); px(g, '#3fe0ff', 1, 7, 18, 1);
-    for (const x of [4, 9, 14]) { px(g, '#ff4fa8', x - 1, 3, 1, 1); px(g, '#ff4fa8', x, 4, 1, 1); px(g, '#ff4fa8', x + 1, 3, 1, 1); px(g, '#ff4fa8', x - 1, 2, 1, 1); px(g, '#ff4fa8', x + 1, 2, 1, 1); } }),
+  barrier: nrCanvas(22, 14, g => { px(g, '#07021a', 0, 0, 22, 9); for (let y = 1; y < 8; y++) for (let x = 1; x < 21; x++) px(g, (x + y) % 6 < 3 ? '#ffd84a' : '#ff4fa8', x, y); px(g, '#fff4a0', 1, 1, 20, 1);
+    for (const x of [2, 17]) { px(g, '#07021a', x, 9, 3, 5); px(g, '#c8ccec', x + 1, 9, 1, 5); } }),
+  bar: nrCanvas(22, 24, g => { for (const x of [0, 19]) { px(g, '#07021a', x, 0, 3, 24); px(g, '#c8f8ff', x + 1, 0, 1, 24); } px(g, '#07021a', 0, 0, 22, 11); px(g, '#3fe0ff', 1, 1, 20, 9); px(g, '#c8f8ff', 1, 1, 20, 1); px(g, '#1fa8d0', 1, 9, 20, 1);
+    for (const x of [5, 11, 17]) { px(g, '#07021a', x - 1, 2, 2, 4); px(g, '#07021a', x - 3, 5, 6, 1); px(g, '#07021a', x - 2, 6, 4, 1); px(g, '#07021a', x - 1, 7, 2, 1); } }),
   train: nrTrain(false, false), trainLit: nrTrain(false, true), trainBack: nrTrain(true),
   coin: [7, 5, 3, 1].map(w => nrCanvas(7, 7, g => { const x = (7 - w) >> 1; px(g, '#07021a', x, 0, w, 7); if (w > 2) { px(g, '#ffd84a', x + 1, 1, w - 2, 5); px(g, '#fff4a0', x + 1, 1, 1, 3); } else px(g, '#ffd84a', x, 1, w, 5); })),
   lamp: nrCanvas(6, 34, g => { px(g, '#07021a', 2, 4, 2, 30); px(g, '#5a5f8a', 2, 4, 1, 30); px(g, '#07021a', 0, 0, 6, 5); px(g, '#3fe0ff', 1, 1, 4, 3); px(g, '#c8f8ff', 2, 1, 2, 1); }),
@@ -430,20 +431,20 @@ function nrDraw() {
   g.drawImage(NR_CITY, Math.round(-52 - (nr.x - 1) * 10 - (nr.dist * .5) % 1), HOR - 58);
   // la route, ligne par ligne : bandes qui défilent, lignes de voie en tirets, rails néon
   for (let y = HOR + 1; y < H; y++) {
-    const z = (H - HOR) / (y - HOR), s = 1 / z, wz = z + nr.dist, half = 105 * s, cx = W / 2;
-    px(g, Math.floor(wz * .8) % 2 ? '#0c0826' : '#100a2e', 0, y, W, 1);
-    px(g, Math.floor(wz * 1.2) % 2 ? '#1e1846' : '#251d52', cx - half, y, half * 2, 1);
-    const lw = Math.max(1, Math.round(3 * s));
-    if (Math.floor(wz * 1.6) % 2) for (const k of [-1, 1]) px(g, '#5a4aa0', cx + k * 35 * s - lw / 2, y, lw, 1);
-    for (const k of [-1, 1]) { px(g, '#ff4fa8', cx + k * half - (k > 0 ? lw : 0), y, lw, 1); }
+    const z = (H - HOR) / (y - HOR), s = 1 / z, wz = z + nr.dist, half = NR.LANE * 1.5 * s, cx = W / 2;
+    px(g, Math.floor(wz * .8) % 2 ? '#07021a' : '#0b0424', 0, y, W, 1);
+    px(g, Math.floor(wz * 1.2) % 2 ? '#3a3070' : '#43397c', cx - half, y, half * 2, 1);
+    const lw = Math.max(1, Math.round(4 * s));
+    if (Math.floor(wz * 1.6) % 2) for (const k of [-1, 1]) px(g, '#c8b8ff', cx + k * NR.LANE / 2 * s - lw / 2, y, lw, 1);
+    for (const k of [-1, 1]) { px(g, '#07021a', cx + k * half - (k > 0 ? lw + 1 : -1), y, lw + 1, 1); px(g, '#ff4fa8', cx + k * half - (k > 0 ? lw : 0), y, lw, 1); }
   }
   // les objets, du plus loin au plus proche (le coureur compris)
   const items = [];
   for (const d of nr.deco) for (const l of [-.7, 2.7]) items.push([d.z, () => nrPut(g, NR_SPR.lamp, d.z, l)]);
   for (const o of nr.obs) {
     if (o.type !== 'train') { items.push([o.z, () => nrPut(g, NR_SPR[o.type], o.z, o.lane)]); continue; }
-    for (let z = Math.min(o.z + o.len, NR.FAR); z > Math.max(o.z, .9) + .01; z -= .3) items.push([z, () => nrPut(g, NR_SPR.trainBack, z, o.lane)]);
-    if (o.z > .9) items.push([o.z - .01, () => nrPut(g, o.vz ? NR_SPR.trainLit : NR_SPR.train, o.z, o.lane)]);
+    for (let z = Math.min(o.z + o.len, NR.FAR); z > Math.max(o.z, 1.25) + .01; z -= .3) items.push([z, () => nrPut(g, NR_SPR.trainBack, z, o.lane)]);
+    if (o.z > 1.25) items.push([o.z - .01, () => nrPut(g, o.vz ? NR_SPR.trainLit : NR_SPR.train, o.z, o.lane)]);
   }
   const cf = Math.floor(nr.tick / 6) % 6;
   for (const c of nr.coins) items.push([c.z, () => nrPut(g, NR_SPR.coin[[0, 1, 2, 3, 2, 1][cf]], c.z, c.lane, c.e)]);
