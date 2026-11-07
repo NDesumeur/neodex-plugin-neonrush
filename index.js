@@ -354,12 +354,20 @@ const NR_SPR = {
   coin: [7, 5, 3, 1].map(w => nrCanvas(7, 7, g => { const x = (7 - w) >> 1; px(g, '#07021a', x, 0, w, 7); if (w > 2) { px(g, '#ffd84a', x + 1, 1, w - 2, 5); px(g, '#fff4a0', x + 1, 1, 1, 3); } else px(g, '#ffd84a', x, 1, w, 5); })),
   lamp: nrCanvas(6, 34, g => { px(g, '#07021a', 2, 4, 2, 30); px(g, '#5a5f8a', 2, 4, 1, 30); px(g, '#07021a', 0, 0, 6, 5); px(g, '#3fe0ff', 1, 1, 4, 3); px(g, '#c8f8ff', 2, 1, 2, 1); }),
 };
+// ce qu'il faut faire, affiché au bas de chaque voie pour son prochain obstacle : sauter, glisser, changer de voie
+const NR_HINT_PAL = {k: '#07021a', y: '#ffd84a', Y: '#fff4a0', c: '#3fe0ff', C: '#c8f8ff', r: '#ff4a5a', R: '#ffb0b8'};
+const NR_HINT = {
+  barrier: nrRows(['...kkkk...', '..kyYYyk..', '.kyyYYyyk.', 'kyyyYYyyyk', 'kkkyyyykkk', '..kyyyyk..', '..kyyyyk..', '..kyyyyk..', '..kkkkkk..'], NR_HINT_PAL),
+  bar: nrRows(['..kkkkkk..', '..kccCck..', '..kccCck..', '..kccCck..', 'kkkccCckkk', 'kcccCCccck', '.kccCCcck.', '..kcCCck..', '...kkkk...'], NR_HINT_PAL),
+  train: nrRows(['kkk....kkk', 'krRk..kRrk', '.krRkkRrk.', '..krRRrk..', '...kRRk...', '..krRRrk..', '.krRkkRrk.', 'krRk..kRrk', 'kkk....kkk'], NR_HINT_PAL),
+};
+const NR_WHY = {barrier: 'Il fallait sauter la barrière', bar: 'Il fallait glisser sous le panneau', train: 'Il fallait changer de voie'};
 // la ville au loin : dessinée une fois (fenêtres allumées au hasard, toujours les mêmes)
 const NR_CITY = nrCanvas(320, 60, g => { const r = seeded(7); let x = 0; while (x < 320) { const w = 14 + Math.floor(r() * 22), h = 18 + Math.floor(r() * 40), c = r() < .5 ? '#1a1040' : '#22145a'; px(g, '#07021a', x, 60 - h - 1, w + 1, h + 1); px(g, c, x + 1, 60 - h, w - 1, h);
   for (let wy = 60 - h + 3; wy < 58; wy += 4) for (let wx = x + 3; wx < x + w - 2; wx += 4) if (r() < .35) px(g, r() < .6 ? '#ffd84a' : '#3fe0ff', wx, wy, 2, 2);
   if (r() < .3) { px(g, '#ff4fa8', x + 3, 60 - h + 2, w - 6, 2); } x += w + Math.floor(r() * 3); } });
 function nrNew() {
-  nr = Object.assign(nr || {tick: 0, raf: 0}, {seen: nr ? nr.tick : 0, mode: 'ready', lane: 1, x: 1, e: 0, ve: 0, duck: 0, obs: [], coins: [], deco: [], dist: 0, v: .11, spawn: 2, got: 0, shake: 0, record: false, dead: 0, step: 0});
+  nr = Object.assign(nr || {tick: 0, raf: 0}, {seen: nr ? nr.tick : 0, mode: 'ready', lane: 1, x: 1, e: 0, ve: 0, duck: 0, obs: [], coins: [], deco: [], dist: 0, v: .11, spawn: 2, got: 0, shake: 0, record: false, dead: 0, step: 0, why: ''});
   for (let z = 2; z < NR.FAR; z += 3) nr.deco.push({z});
 }
 let nrac = null;
@@ -408,7 +416,7 @@ function nrUpdate() {
   nr.spawn -= nr.v; if (nr.spawn <= 0) { nrRow(NR.FAR); nr.spawn = 6 - Math.min(1.6, nr.dist / 600); }
   const lane = Math.round(nr.x), near = (z, len) => z <= NR.PZ + .2 && z + len >= NR.PZ - .2;
   for (const o of nr.obs) if (o.lane === lane && near(o.z, o.len)) {
-    if (o.type === 'train' || o.type === 'barrier' && nr.e < 34 || o.type === 'bar' && !nr.duck) { nrHit(); return; }
+    if (o.type === 'train' || o.type === 'barrier' && nr.e < 34 || o.type === 'bar' && !nr.duck) { nr.why = NR_WHY[o.type]; nrHit(); return; }
   }
   for (const c of nr.coins) if (!c.got && c.lane === lane && Math.abs(c.z - NR.PZ) < .3 && Math.abs(c.e - nr.e) < 40) { c.got = true; nr.got++; nrBeep(1320, .06, 'square', 1760); }
   nr.obs = nr.obs.filter(o => o.z + o.len > .6); nr.coins = nr.coins.filter(c => !c.got && c.z > .6);
@@ -452,12 +460,19 @@ function nrDraw() {
   items.push([NR.PZ, () => { const s = NR.U / NR.PZ; g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(Math.round(W / 2 + (nr.x - 1) * NR.LANE / NR.PZ - 8 * s / 2 * 2), Math.round(nrY(NR.PZ) - 2), Math.round(8 * s * 2), 3); nrPut(g, body, NR.PZ, nr.x, nr.e); }]);
   items.sort((a, b) => b[0] - a[0]).forEach(([, f]) => f());
   g.restore();
+  // les panneaux d'alerte : le prochain obstacle de chaque voie, de plus en plus visible, clignotant quand il est tout près
+  if (nr.mode === 'play') for (const lane of [0, 1, 2]) {
+    const o = nr.obs.filter(o => o.lane === lane && o.z + o.len > NR.PZ && o.z < 11).sort((a, b) => a.z - b.z)[0];
+    if (!o || (o.z < 4 && Math.floor(nr.tick / 5) % 2)) continue;
+    const img = NR_HINT[o.type], s = 2, x = Math.round(W / 2 + (lane - 1) * 62 - img.width * s / 2), y = H - img.height * s - 6;
+    g.drawImage(img, x, y, img.width * s, img.height * s);
+  }
   // score et pièces
   if (nr.mode !== 'ready') { pxFont(g, String(nrScore()), 6, 16, '#ffffff', 12); g.drawImage(NR_SPR.coin[0], W - 46, 7, 14, 14); pxFont(g, String(nr.got), W - 28, 16, '#ffd84a', 12); }
   if (nr.mode === 'over') { g.fillStyle = `rgba(255,40,90,${Math.max(0, .35 - nr.dead / 60)})`; g.fillRect(0, 0, W, H); }
-  if (nr.mode === 'ready') gameText(g, W, [['NÉON RUSH', '#ff4fa8', 16], ['Clic ou espace pour courir', '#ffffff'], ['← → voies · ↑ saut · ↓ glisse', '#b8a8e0'], ['Record ' + (games.best.neonrush || 0), '#ffd84a']], 120);
+  if (nr.mode === 'ready') gameText(g, W, [['NÉON RUSH', '#ff4fa8', 16], ['Clic ou espace pour courir', '#ffffff'], ['← → voies · ↑ saut · ↓ glisse', '#b8a8e0'], ['Panneaux : jaune saute', '#ffd84a'], ['cyan glisse, rouge change', '#3fe0ff'], ['Record ' + (games.best.neonrush || 0), '#ffd84a']], 120);
   if (nr.mode === 'pause') gameText(g, W, [['PAUSE', '#ffffff', 12], ['Espace pour reprendre', '#b8a8e0']], 130);
-  if (nr.mode === 'over' && nr.dead > 20) gameText(g, W, [['BOUM !', '#ff4a5a', 14], ['Score ' + nrScore(), '#ffffff'], ['Pièces ' + nr.got + ' · ' + Math.floor(nr.dist * 3) + ' m', '#ffd84a'], [nr.record ? 'NOUVEAU RECORD !' : 'Record ' + (games.best.neonrush || 0), '#3fe0ff'], [nr.dead > 40 ? 'Espace pour recommencer' : '', '#b8a8e0']], 110);
+  if (nr.mode === 'over' && nr.dead > 20) gameText(g, W, [['BOUM !', '#ff4a5a', 14], ['Score ' + nrScore(), '#ffffff'], [nr.why || '', '#ffb0b8'], ['Pièces ' + nr.got + ' · ' + Math.floor(nr.dist * 3) + ' m', '#ffd84a'], [nr.record ? 'NOUVEAU RECORD !' : 'Record ' + (games.best.neonrush || 0), '#3fe0ff'], [nr.dead > 40 ? 'Espace pour recommencer' : '', '#b8a8e0']], 110);
 }
 function nrInfo() {
   $('nrStats').replaceChildren(...[['Meilleur score', games.best.neonrush || 0], ['Courses', nrs.runs], ['Pièces au total', nrs.coins], ['Plus de pièces en une course', nrs.bestCoins], ['Distance totale', nrs.meters + ' m']].flatMap(([a, b]) => [el('span', '', a), el('b', '', String(b))]));
@@ -476,7 +491,7 @@ document.addEventListener('keydown', e => {
 $('nrNew').onclick = () => { nrNew(); $('nrNew').blur(); };
 {  // vérification : une barrière tue si on ne saute pas, pas si on saute ; un métro au loin laisse toujours une voie libre
   const keep = nr; nr = null; nrNew(); const realBest = games.best.neonrush, realStats = {...nrs};
-  nr.mode = 'play'; nr.obs = [{type: 'barrier', lane: 1, z: NR.PZ + .1, len: .35, vz: 0}]; nrUpdate(); const dies = nr.mode === 'over';
+  nr.mode = 'play'; nr.obs = [{type: 'barrier', lane: 1, z: NR.PZ + .1, len: .35, vz: 0}]; nrUpdate(); const dies = nr.mode === 'over' && nr.why === NR_WHY.barrier;
   nrNew(); nr.mode = 'play'; nr.obs = [{type: 'barrier', lane: 1, z: NR.PZ + .1, len: .35, vz: 0}]; nr.e = 40; nr.ve = 1; nrUpdate(); const jumps = nr.mode === 'play';
   nrNew(); for (let i = 0; i < 200; i++) nrRow(NR.FAR); const blocked = [0, 1, 2].every(l => nr.obs.some(o => o.type === 'train' && o.lane === l && o.z === NR.FAR));
   console.assert(dies && jumps && !blocked, 'neonrush', {dies, jumps, blocked});
