@@ -3,7 +3,7 @@
   "name": "Néon Rush",
   "version": "1.0.3",
   "author": "NDesumeur",
-  "description": "Course sans fin sur trois voies dans une ville néon : saute les barrières, glisse sous les panneaux, change de voie avant le métro, ramasse les pièces.",
+  "description": "Course sans fin sur trois voies dans une ville de nuit au néon : saute les barrières, glisse sous les panneaux, change de voie avant le métro (certains foncent vers toi). Des panneaux de couleur annoncent chaque obstacle, la vitesse double peu à peu. Score : distance plus 5 points par pièce ; clavier, souris ou glissé au doigt ; record et statistiques gardés.",
   "icon": "icon.png",
   "entry": "index.js",
   "view": "neonrush",
