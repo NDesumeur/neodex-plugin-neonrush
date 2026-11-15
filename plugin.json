@@ -1,9 +1,9 @@
 {
   "id": "neodex.neonrush",
   "name": "Néon Rush",
-  "version": "1.0.4",
+  "version": "1.1.0",
   "author": "NDesumeur",
-  "description": "Course sans fin sur trois voies dans une ville de nuit au néon : saute les barrières, glisse sous les panneaux, change de voie avant le métro (certains foncent vers toi). Des panneaux de couleur annoncent chaque obstacle, la vitesse double peu à peu. Score : distance plus 5 points par pièce ; clavier, souris ou glissé au doigt ; record et statistiques gardés.",
+  "description": "Course sans fin sur trois voies dans une ville de nuit au néon : saute les barrières, glisse sous les panneaux, change de voie avant le métro (certains foncent vers toi). Des panneaux de couleur annoncent chaque obstacle, la vitesse double peu à peu. Score : distance plus 5 points par pièce ; clavier, souris ou glissé au doigt ; record et statistiques gardés. Une rue bordée d'immeubles et quatre quartiers qui se suivent tous les 400 m (centre néon, port, toits, métro) ; bonus aimant, bouclier et planche à roulettes ; cinq personnages à acheter avec tes pièces ; plein écran et jeu à la taille de l'écran.",
   "icon": "icon.png",
   "entry": "index.js",
   "view": "neonrush",
