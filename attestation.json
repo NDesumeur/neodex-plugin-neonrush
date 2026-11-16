@@ -1,9 +1,9 @@
 {
   "pluginId": "neodex.neonrush",
   "repo": "NDesumeur/neodex-plugin-neonrush",
-  "version": "1.1.0",
-  "sha256": "118649d6bd8c86e83876e03e317c45d20a3409742fcc6c205e541b54f6553031",
-  "approvedAt": "2026-11-16T04:14:38.118Z",
+  "version": "1.1.1",
+  "sha256": "c99544328b1952383c63ed423d74f6b107b909848f9c511db7bc1e517af8910f",
+  "approvedAt": "2026-11-16T16:38:50.444Z",
   "neobase": ">=4.0.0",
-  "signature": "BycJ8yWa1cYGnJ5IbijwBvUWZmFXHrG5HYaBbMXRvdih875HQNCAM4l8ac9V+vqCFfrPRI/DeAglj0B7CEZUBg=="
+  "signature": "cumSSwEU9UJHXqAWtJQO2WQDZ7RTs7VpulJgNlotyAhPntLh5BKpmf1VWPyff2N0dnH3LDXzMK+cF2K8TqEXCw=="
 }
