@@ -73,7 +73,6 @@
  "Plus de pièces en une course": "More coins in one run",
  "RECORDS": "RECORDS",
  "Record": "Record",
- "Record, déblocages.": "Record, unlocks.",
  "Score": "Score",
  "Ua": "Ua",
  "Uc": "Uc",
@@ -110,5 +109,6 @@
  "le changement de quartier ne s'affiche pas": "the district change is not shown",
  "images de": "images of",
  "largeur des images": "image width",
- "la boutique compte mal": "the shop counts wrong"
+ "la boutique compte mal": "the shop counts wrong",
+ "Rien n'est synchronisé : tes records restent sur cet appareil.": "Nothing is synced: your records stay on this device."
 }
