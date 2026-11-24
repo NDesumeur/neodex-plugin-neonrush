@@ -1,6 +1,6 @@
 # Néon Rush
 
-Une course sans fin sur trois voies dans une ville de nuit éclairée au néon : saute les barrières, glisse sous les panneaux, change de voie avant le métro et ramasse un maximum de pièces. La vitesse augmente à mesure que tu avances.
+Une course sans fin sur une autoroute synthwave à trois voies, sous un grand soleil rayé : saute les lasers, glisse sous les barres, change de voie devant les camions et ramasse un maximum de pièces. Les obstacles arrivent sur le temps de la musique. Refait de zéro en 2.0.0.
 
 *English version: [README.en.md](README.en.md)*
 
@@ -8,55 +8,54 @@ Une course sans fin sur trois voies dans une ville de nuit éclairée au néon :
 
 - **← →** (ou **Q** / **D**) : changer de voie.
 - **↑**, **Z**, **Espace** ou **Entrée** : sauter.
-- **↓** ou **S** : glisser.
+- **↓** ou **S** : glisser (en l'air, on redescend tout de suite).
 - **Souris** ou **doigt** : glisse dans la direction voulue (gauche, droite, haut pour sauter, bas pour glisser) ; un simple clic saute.
 - **P** : pause.
-- **Clic** ou **Espace** : lancer la course, puis en recommencer une après une chute.
 
 ## Obstacles
 
-- **Barrière rayée** : saute par-dessus.
-- **Panneau en hauteur** : glisse dessous.
-- **Métro** : change de voie. Les métros aux phares allumés roulent vers toi, plus vite que les autres ; ils apparaissent après les premières centaines de mètres.
+- **Laser rouge** au ras du sol : saute par-dessus.
+- **Barre jaune** rayée : glisse dessous.
+- **Camion** au néon : change de voie. Ceux aux phares allumés foncent vers toi.
 
-Au-dessus de chaque voie, un petit panneau annonce le prochain obstacle : **jaune** pour sauter, **cyan** pour glisser, **rouge** pour changer de voie. Il y a toujours au moins une voie libre de métro. Après une chute, le jeu dit ce qu'il fallait faire.
+Il reste toujours une voie sans camion. Après une chute, le jeu dit ce qu'il fallait faire.
+
+## La musique
+
+Une musique synthwave (grosse caisse, basse, caisse claire, arpèges) joue pendant la course et s'étoffe avec la distance. Les rangées d'obstacles naissent au loin calées sur elle : elles arrivent à toi sur un temps fort. Le bouton **Musique** la coupe.
+
+## Missions (nouveau en 2.0.0)
+
+Trois missions à la fois (sauter des lasers, glisser sous des barres, changer de voie, voler en jetpack, pièces, mètres ou points en une course…). Les trois réussies, ton **multiplicateur de score** monte d'un cran (×2, ×3…) et trois nouvelles missions, plus dures, arrivent.
 
 ## Bonus
 
-De temps en temps, un bonus flotte au-dessus d'une voie libre :
+- **Aimant** : les pièces des trois voies viennent à toi.
+- **Jetpack** : tu voles au-dessus de tout, au milieu d'une pluie de pièces.
+- **×2** : chaque pièce compte double.
 
-- **Aimant** (10 s) : les pièces des trois voies viennent à toi.
-- **Bouclier** (15 s) : une bulle te protège d'un choc, puis disparaît.
-- **Planche à roulettes** (15 s) : tu sautes plus haut, et elle prend un choc à ta place.
+## Chasse du jour
 
-Les bonus en cours s'affichent en haut à gauche, avec le temps qui reste (la barre clignote en rouge à la fin). Après un choc évité, tu clignotes un instant : rien ne peut te toucher.
+Chaque jour, un mot (NEON, LASER, TURBO…). Ses lettres apparaissent pendant les courses, une à la fois, dans une voie libre. Le mot complet rapporte **300 pièces**.
 
-## Les quartiers
+## Personnages et planches
 
-La rue est bordée d'immeubles et change de quartier tous les 400 m ; le nouveau quartier arrive du fond de la rue :
+Tes pièces s'achètent dans le panneau :
 
-- **Centre néon** : tours aux fenêtres allumées, enseignes roses et bleues, réverbères ;
-- **Le port** : piles de conteneurs, quai en planches, grues et coucher de soleil sur la mer ;
-- **Les toits** : course sur les toits, parapets, réservoirs d'eau et antennes, ciel étoilé et grosse lune ;
-- **Le métro** : un tunnel carrelé avec ses néons, ses affiches, ses piliers, les rails et les traverses.
+- **Personnages**, chacun avec un pouvoir : **Néo** (au départ), **Kiki la chatte** (double saut, 150 pièces), **Robo** (bonus 50 % plus longs, 400), **Ninja** (part avec un bouclier, 800), **Étoile** (score +25 %, 2 000).
+- **Planches** : la planche te sauve d'un choc par course et garde son pouvoir tant qu'elle n'est pas cassée : **bois** (au départ), **Ressort** (sauts plus hauts, 300), **Aimantée** (attire les pièces voisines, 700), **Fusée** (départ en jetpack, 1 500).
 
-Le nom du quartier s'affiche quand tu y entres, puis on recommence au centre.
+## Score
 
-## Personnages
+Les mètres parcourus, multipliés par ton multiplicateur de missions, plus 5 points par pièce. La vitesse augmente avec la distance, jusqu'au double.
 
-Tes pièces (celles de toutes tes courses) s'achètent des personnages dans la case **Personnages** : **Néo** (au départ), **Kiki la chatte** (150 pièces), **Robo** (400), **Ninja** (800) et **Étoile** (2 000). Une fois acheté, un personnage se choisit d'un clic.
+## Statistiques
+
+Meilleur score, nombre de courses, pièces au total, plus de pièces en une course, bonus ramassés, mots du jour trouvés et distance totale.
 
 ## Plein écran
 
 Le bouton **Plein écran** agrandit la course à tout l'écran (Échap pour en sortir). Hors plein écran, elle prend toute la hauteur que laisse la fenêtre.
-
-## Pièces et score
-
-Les pièces arrivent en file sur une voie libre, ou en arc au-dessus d'une barrière, à attraper en sautant. Le score vaut la distance parcourue en mètres, plus 5 points par pièce. La vitesse augmente avec la distance, jusqu'au double de la vitesse de départ.
-
-## Statistiques
-
-Meilleur score, nombre de courses, pièces au total, plus de pièces en une course et distance totale parcourue.
 
 ## Données et synchronisation
 

@@ -1,6 +1,6 @@
 # Néon Rush (Neon Rush)
 
-An endless three-lane run through a neon-lit city at night: jump over barriers, slide under signs, switch lanes before the subway train and grab as many coins as you can. The speed rises as you go.
+An endless run on a three-lane synthwave highway, under a big striped sun: jump over lasers, slide under bars, switch lanes in front of trucks and grab as many coins as you can. Obstacles arrive on the beat of the music. Rebuilt from scratch in 2.0.0.
 
 *Version française : [README.md](README.md)*
 
@@ -8,55 +8,54 @@ An endless three-lane run through a neon-lit city at night: jump over barriers, 
 
 - **← →** (or **A** / **D**, **Q** on AZERTY): switch lanes.
 - **↑**, **W** (**Z** on AZERTY), **Space** or **Enter**: jump.
-- **↓** or **S**: slide.
+- **↓** or **S**: slide (in the air, you drop down at once).
 - **Mouse** or **finger**: swipe in the direction you want (left, right, up to jump, down to slide); a simple click jumps.
 - **P**: pause.
-- **Click** or **Space**: start the run, then start another one after a fall.
 
 ## Obstacles
 
-- **Striped barrier**: jump over it.
-- **Overhead sign**: slide under it.
-- **Subway train**: switch lanes. Trains with their headlights on drive towards you, faster than the others; they appear after the first few hundred metres.
+- **Red laser** near the ground: jump over it.
+- Striped **yellow bar**: slide under it.
+- Neon **truck**: switch lanes. Trucks with their headlights on rush towards you.
 
-Above each lane, a small sign announces the next obstacle: **yellow** to jump, **cyan** to slide, **red** to switch lanes. There is always at least one lane free of trains. After a fall, the game tells you what you should have done.
+There is always one lane without a truck. After a fall, the game tells you what you should have done.
 
-## Bonuses
+## The music
 
-From time to time, a bonus floats above a free lane:
+Synthwave music (kick, bass, snare, arpeggios) plays during the run and grows richer with distance. Obstacle rows are born far away in time with it: they reach you on a strong beat. The **Music** button turns it off.
 
-- **Magnet** (10 s): the coins of all three lanes come to you.
-- **Shield** (15 s): a bubble protects you from one crash, then disappears.
-- **Skateboard** (15 s): you jump higher, and it takes a crash for you.
+## Missions (new in 2.0.0)
 
-Active bonuses show at the top left, with the time left (the bar flashes red at the end). After an avoided crash you blink for a moment: nothing can hit you.
+Three missions at a time (jump over lasers, slide under bars, switch lanes, fly with the jetpack, coins, metres or points in one run…). Complete all three and your **score multiplier** goes up a notch (×2, ×3…), and three new, harder missions arrive.
 
-## Districts
+## Power-ups
 
-The street is lined with buildings and changes district every 400 m; the new district comes from the end of the street:
+- **Magnet**: coins from all three lanes come to you.
+- **Jetpack**: you fly above everything, through a shower of coins.
+- **×2**: every coin counts double.
 
-- **Neon centre**: towers with lit windows, pink and blue signs, street lamps;
-- **The harbour**: stacks of containers, a plank quay, cranes and a sunset over the sea;
-- **The rooftops**: a run on the roofs, parapets, water towers and antennas, a starry sky and a big moon;
-- **The subway**: a tiled tunnel with its neon lights, posters, pillars, rails and sleepers.
+## Daily hunt
 
-The district's name shows when you enter it, then it starts again at the centre.
+Every day, a word (NEON, LASER, TURBO…). Its letters show up during runs, one at a time, in a free lane. The full word gives **300 coins**.
 
-## Characters
+## Characters and boards
 
-Your coins (from all your runs) buy characters in the **Characters** box: **Néo** (at the start), **Kiki the cat** (150 coins), **Robo** (400), **Ninja** (800) and **Étoile** (2,000). Once bought, a character is chosen with a click.
+Your coins buy things in the side panel:
+
+- **Characters**, each with a power: **Néo** (from the start), **Kiki the cat** (double jump, 150 coins), **Robo** (power-ups last 50 % longer, 400), **Ninja** (starts with a shield, 800), **Étoile** (score +25 %, 2,000).
+- **Boards**: your board saves you from one crash per run and keeps its power until it breaks: **wood** (from the start), **Spring** (higher jumps, 300), **Magnetic** (pulls nearby coins, 700), **Rocket** (starts with a jetpack, 1,500).
+
+## Score
+
+Metres run, times your mission multiplier, plus 5 points per coin. The speed rises with distance, up to double.
+
+## Statistics
+
+Best score, number of runs, total coins, most coins in one run, power-ups picked up, daily words found and total distance.
 
 ## Full screen
 
 The **Full screen** button fills the whole screen with the run (Escape to leave). Otherwise it takes all the height the window leaves.
-
-## Coins and score
-
-Coins come in a line on a free lane, or in an arc above a barrier, to catch while jumping. The score is the distance run in metres, plus 5 points per coin. The speed rises with distance, up to twice the starting speed.
-
-## Statistics
-
-Best score, number of runs, total coins, most coins in one run and total distance run.
 
 ## Data and sync
 

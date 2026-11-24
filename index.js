@@ -1,13 +1,16 @@
-// Néon Rush : Course sans fin sur trois voies dans une ville néon : saute les barrières, glisse sous les panneaux, change de voie avant le métro, ramasse les pièces.
+// Néon Rush : course sans fin sur une autoroute synthwave à trois voies : saute les lasers, glisse sous les barres, change de voie devant les camions, ramasse les pièces, réussis les missions.
 // Jeu NeoDex en pixel art dessiné à la main (police bitmap, cadres et boutons en pixels). Il tourne dans le bac à sable de NeoDex.
 const HTML = `<div class="appWrap wide">
   <div class="agHead"><span class="label">Néon Rush</span><span class="hint">← → : voie · ↑ ou espace : saut · ↓ : glissade · P : pause</span></div>
   <div class="gMain"><div class="gameBox"><canvas id="nrCanvas" width="216" height="288"></canvas></div>
     <div class="gSide">
       <div class="sysCard"><b>RECORDS</b><div class="gStats" id="nrStats"></div></div>
-      <div class="row"><button class="btn main" id="nrNew">NOUVELLE COURSE</button><button class="btn" id="nrFs">PLEIN ÉCRAN</button></div>
+      <div class="row"><button class="btn main" id="nrNew">NOUVELLE COURSE</button><button class="btn" id="nrFs">PLEIN ÉCRAN</button><button class="btn" id="nrMus">MUSIQUE</button></div>
+      <div class="sysCard"><b>MISSIONS</b><div class="nrLvl" id="nrLvl"></div><div class="nrMis" id="nrMis"></div><div class="hint">Les trois missions réussies, ton multiplicateur de score monte d'un cran et trois nouvelles arrivent.</div></div>
+      <div class="sysCard"><b>CHASSE DU JOUR</b><div class="nrWord" id="nrWord"></div><div class="hint">Les lettres du mot du jour apparaissent pendant les courses, une à la fois. Le mot complet rapporte 300 pièces. Un nouveau mot chaque jour.</div></div>
       <div class="sysCard"><b>PERSONNAGES</b><div class="nrWallet" id="nrWallet"></div><div class="nrChars" id="nrChars"></div></div>
-      <div class="hint">Barrière rayée : saute. Panneau en hauteur : glisse dessous. Métro : change de voie. Les métros aux phares allumés roulent vers toi. Bonus : l'aimant attire les pièces des trois voies, le bouclier et la planche te sauvent d'un choc (la planche fait aussi sauter plus haut). Tous les 400 m, un nouveau quartier : le centre néon, le port, les toits puis le métro. Tes pièces achètent de nouveaux personnages.</div>
+      <div class="sysCard"><b>PLANCHES</b><div class="hint">Ta planche te sauve d'un choc par course, et garde son pouvoir tant qu'elle n'est pas cassée.</div><div class="nrChars" id="nrBoards"></div></div>
+      <div class="hint">Laser rouge : saute. Barre jaune : glisse dessous. Camion : change de voie (ceux aux phares allumés foncent vers toi). Les obstacles arrivent sur le temps de la musique. Bonus : l'aimant attire les pièces des trois voies, le jetpack te fait voler au-dessus de tout, ×2 double les pièces.</div>
     </div></div>
 </div>`;
 const CSS = `.gMain{display:flex;gap:22px;align-items:flex-start;flex-wrap:wrap}
@@ -17,11 +20,23 @@ const CSS = `.gMain{display:flex;gap:22px;align-items:flex-start;flex-wrap:wrap}
 .gameBox:fullscreen canvas{width:min(100vw,calc(100vh * 3 / 4))}
 .nrWallet{margin:6px 0 10px;color:#ffd84a}
 .nrChars{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:8px}
-.nrChar{display:grid;justify-items:center;gap:6px;padding:8px 4px;background:#120a2a;box-shadow:inset 0 0 0 2px #3a2070;text-align:center;font-size:13px}
+.nrChar{display:grid;justify-items:center;align-content:start;gap:5px;padding:8px 4px;background:#120a2a;box-shadow:inset 0 0 0 2px #3a2070;text-align:center;font-size:13px}
 .nrChar.on{box-shadow:inset 0 0 0 2px #ff4fa8}
 .nrPrice{color:#ffd84a;font-size:12px}
-.nrChar canvas{width:36px;height:60px;image-rendering:pixelated}
+.nrPow{color:#3fe0ff;font-size:11px}
+.nrChar canvas{image-rendering:pixelated}
 .nrChar .btn{font-size:10px;padding:5px 6px;max-width:100%;white-space:nowrap}
+.nrLvl{color:#ff4fa8;margin:6px 0}
+.nrMis{display:grid;gap:8px;margin-bottom:6px}
+.nrMisRow{display:grid;grid-template-columns:1fr auto;gap:2px 8px;font-size:13px}
+.nrMisRow.done{color:#5aff9a}
+.nrNum{color:#ffd84a}
+.nrBar{grid-column:1/-1;height:4px;background:#120a2a;display:block}
+.nrBar b{display:block;height:100%;background:#ff4fa8}
+.nrMisRow.done .nrBar b{background:#5aff9a}
+.nrWord{display:flex;gap:6px;margin:8px 0}
+.nrWord span{width:26px;height:30px;display:grid;place-items:center;background:#120a2a;box-shadow:inset 0 0 0 2px #3a2070;color:#5a4a8a;font-size:16px}
+.nrWord span.on{color:#fff4a0;box-shadow:inset 0 0 0 2px #b070ff;background:#2a1458}
 .gSide{display:flex;flex-direction:column;gap:14px;flex:1;min-width:250px;max-width:420px}
 .gSide .sysCard{display:flex;flex-direction:column}
 .gStats{display:grid;grid-template-columns:1fr auto;gap:4px 14px}
@@ -334,302 +349,328 @@ const pxFont = (g, text, x, y, color, size = 8, align = 'left') => { const s = P
 
 const clock = s => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
 
-/* ---------- Néon Rush : route en fausse 3D (une ligne d'écran = une distance), objets triés du plus loin au plus proche.
-   Des deux côtés, les façades sont dessinées colonne par colonne (une colonne d'écran = une distance) ; la ville change de quartier
-   tous les 400 m (centre néon, port, toits, métro), et le nouveau quartier arrive du fond de la rue. ---------- */
-const NR = {W: 216, H: 288, HOR: 74, PZ: 1.6, LANE: 78, U: 3.4, FAR: 26, WALL: 2.45, DIST: 400};
+/* ---------- Néon Rush : une autoroute synthwave en vraie perspective. La caméra est au-dessus de la piste, derrière le coureur :
+   un point (X, hauteur h, distance z) se dessine en x = centre + (X - caméra) * F / z, y = horizon + (CH - h) * F / z.
+   Les rangées d'obstacles naissent au loin calées sur la musique : elles arrivent au coureur sur un temps fort. ---------- */
+const NR = {W: 216, H: 288, HOR: 100, F: 48, CH: 64, PZ: 19.5, LW: 26, FAR: 260, BEAT: 30, BOX: 34, GATE: 10, BEAM: 12, JET: 40, ARCH: 80};
 const nrs = gstore('neonrush', {runs: 0, coins: 0, bestCoins: 0, meters: 0});
-nrs.wallet ??= nrs.coins; nrs.chars ??= ['neo']; nrs.char ??= 'neo'; nrs.bonus ??= 0;  // les pièces déjà gagnées se dépensent dans la boutique
+nrs.wallet ??= nrs.coins; nrs.chars ??= ['neo']; nrs.char ??= 'neo'; nrs.bonus ??= 0; nrs.boards ??= ['bois']; nrs.board ??= 'bois'; nrs.music ??= true;
+nrs.mis ??= {lvl: 0, set: null}; nrs.hunt ??= {day: -1, got: 0, words: 0};
 let nr = null;
 const nrCanvas = (w, h, fn) => { const c = el('canvas'); c.width = w; c.height = h; fn(c.getContext('2d')); return c; };
-const nrRows = (rows, pal, flip) => nrCanvas(rows[0].length, rows.length, g => sprite(g, flip ? rows.map(r => [...r].reverse().join('')) : rows, 0, 0, pal));
-const nrHash = n => { n = Math.imul(n ^ n >>> 13, 0x5bd1e995); return ((n ^ n >>> 15) >>> 0) % 1000; };
-// le coureur, vu de dos ; chaque personnage a ses couleurs et parfois un détail sur la tête (oreilles, antenne, couronne)
-const NR_RUN = ['....kkkk....', '...khhhhk...', '..khhhhhhk..', '..khHhhhhk..', '..khhhhHhk..', '...kkhhkk...', '..kjjjjjjk..', '.kjjjjeejjk.', '.kjjjJeejjk.', 'kjkjjjjjjkjk', 'ksk.jjjj.ksk',
-  '.k.kppppk.k.', '...kppppk...', '..kppkkppk..', '..kpk..kpk..', '..kpk...kk..', '..kwwk......', '..kkkk......'];
-const NR_PASS = NR_RUN.slice(0, 13).concat(['..kppkkppk..', '..kpk..kpk..', '..kpk..kpk..', '..kwk..kwk..', '..kkk..kkk..']);
-const NR_JUMP = NR_RUN.slice(0, 13).concat(['..kppppppk..', '..kwwkkwwk..', '..kkk..kkk..', '............', '............']);
-const NR_DUCK = ['....kkkk....', '...khhhhk...', '..khhhhhhk..', '..khHhhhhk..', '.kkjjjjjjkk.', 'kjjjjeejjjjk', 'kskjjjjjjksk', '.kppppppppk.', 'kwwk....kwwk', 'kkkk....kkkk'];
+const nrRows = (rows, pal) => nrCanvas(rows[0].length, rows.length, g => sprite(g, rows, 0, 0, pal));
+const nrMixC = new Map(), nrHex = c => [1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16));
+function nrMix(a, b, t) {  // le mélange de deux couleurs (32 paliers, gardés en mémoire) : le brouillard vers l'horizon
+  const k = a + b + Math.round(Math.max(0, Math.min(1, t)) * 32); let v = nrMixC.get(k);
+  if (!v) { const A = nrHex(a), B = nrHex(b), q = Math.round(Math.max(0, Math.min(1, t)) * 32) / 32; v = 'rgb(' + A.map((x, i) => Math.round(x + (B[i] - x) * q)).join(',') + ')'; nrMixC.set(k, v); }
+  return v;
+}
+// le coureur, vu de dos : course (deux pas), saut, glissade ; chaque personnage a ses couleurs, un accessoire et un pouvoir
+const NR_BACK = ['....kkkk....', '...khhhhk...', '..khhhhhhk..', '..khhhhhhk..', '..kHhhhhHk..', '...kkhhkk...', '..kjjjjjjk..', '.kjjjccjjjk.', '.kjjjccjjjk.', 'kskjjccjjksk', 'kskJJJJJJksk', '.k.kJJJJk.k.', '...kppppk...'];
+const NR_LEGS = [['...kpkkpk...', '...kpk.kpk..', '...kpk.kwk..', '...kwk.kkk..', '...kkk......'], ['...kpkkpk...', '..kpk.kpk...', '..kwk.kpk...', '..kkk.kwk...', '......kkk...']];
+const NR_TUCK = ['..kppppppk..', '..kwwkkwwk..', '..kkk..kkk..', '............', '............'];
+const NR_DUCK = ['............', '............', '............', '............', '............', '............', '....kkkk....', '...khhhhk...', '..khhhhhhk..', '.kkjjccjjkk.', 'kskjjccjjksk', 'kskJJJJJJksk', '.kppkkkkppk.', '.kwwk..kwwk.', '.kkk....kkk.', '............', '............', '............'];
 const NR_CHARS = [
-  {id: 'neo', name: 'Néo', cost: 0, pal: {h: '#3fe0ff', H: '#1fa8d0', j: '#ff4fa8', J: '#c02a7a', e: '#fff4a0', p: '#3a3f8a', w: '#ffffff', s: '#ffc89a'}, top: ['............', '............']},
-  {id: 'kiki', name: 'Kiki la chatte', cost: 150, pal: {h: '#ff9a3c', H: '#c8641a', j: '#5aff9a', J: '#1a8a5a', e: '#ffffff', p: '#2a5a4a', w: '#ffd84a', s: '#ffc89a'}, top: ['...k....k...', '..khk..khk..'], head0: '..khhkkhhk..'},
-  {id: 'robo', name: 'Robo', cost: 400, pal: {h: '#c8ccec', H: '#8a90b8', j: '#6a72a8', J: '#4a5080', e: '#3fe0ff', p: '#4a5080', w: '#3fe0ff', s: '#c8ccec'}, top: ['.....kk.....', '......k.....']},
-  {id: 'ninja', name: 'Ninja', cost: 800, pal: {h: '#2a2a3a', H: '#14141e', j: '#2a2a3a', J: '#14141e', e: '#ff4a5a', p: '#2a2a3a', w: '#ff4a5a', s: '#ffc89a'}, top: ['............', '............']},
-  {id: 'etoile', name: 'Étoile', cost: 2000, pal: {h: '#ffd84a', H: '#c8a020', j: '#fff4a0', J: '#ffd84a', e: '#ff4fa8', p: '#c8a020', w: '#ffffff', s: '#ffc89a'}, top: ['...k.kk.k...', '...kekkek...']},
-];
-const nrSprCache = {};
-function nrSpr(id = nrs.char) {  // les images du personnage : course (deux pas et le passage), saut, glissade
-  if (nrSprCache[id]) return nrSprCache[id];
-  const c = NR_CHARS.find(c => c.id === id) || NR_CHARS[0], pal = {k: '#120a2a', ...c.pal}, dress = rows => c.top.concat(c.head0 ? [c.head0, ...rows.slice(1)] : rows);
-  return nrSprCache[id] = {run: nrRows(dress(NR_RUN), pal), run2: nrRows(dress(NR_RUN), pal, true), pass: nrRows(dress(NR_PASS), pal), jump: nrRows(dress(NR_JUMP), pal), duck: nrRows(dress(NR_DUCK), pal)};
+  {id: 'neo', name: 'Néo', cost: 0, power: 'Aucun pouvoir', pal: {h: '#3fe0ff', H: '#1fa8d0', j: '#2a1458', J: '#1a0a3a', c: '#ff4fa8', p: '#3a3f8a', w: '#ffffff', s: '#ffc89a'}, top: ['............', '............']},
+  {id: 'kiki', name: 'Kiki la chatte', cost: 150, power: 'Double saut', pal: {h: '#ff9a3c', H: '#c8641a', j: '#1a5a4a', J: '#0e3a30', c: '#5aff9a', p: '#2a5a4a', w: '#ffd84a', s: '#ffc89a'}, top: ['...k....k...', '..khk..khk..']},
+  {id: 'robo', name: 'Robo', cost: 400, power: 'Bonus 50 % plus longs', pal: {h: '#c8ccec', H: '#8a90b8', j: '#4a5080', J: '#2a3060', c: '#3fe0ff', p: '#4a5080', w: '#3fe0ff', s: '#c8ccec'}, top: ['.....kk.....', '......k.....']},
+  {id: 'ninja', name: 'Ninja', cost: 800, power: 'Part avec un bouclier', pal: {h: '#2a2a3a', H: '#14141e', j: '#2a2a3a', J: '#14141e', c: '#ff4a5a', p: '#2a2a3a', w: '#ff4a5a', s: '#ffc89a'}, top: ['............', '.........kk.']},
+  {id: 'etoile', name: 'Étoile', cost: 2000, power: 'Score +25 %', pal: {h: '#ffd84a', H: '#c8a020', j: '#7a2a8a', J: '#4a1a5a', c: '#fff4a0', p: '#c8a020', w: '#ffffff', s: '#ffc89a'}, top: ['...k.kk.k...', '...kekkek...']}];
+// les planches : elles te sauvent d'un choc par course, et gardent leur pouvoir tant qu'elles ne sont pas cassées
+const NR_BOARDS = [{id: 'bois', name: 'Planche de bois', cost: 0, power: 'Te sauve d\'un choc', a: '#c8843a', b: '#7a4a1a'},
+  {id: 'ressort', name: 'Ressort', cost: 300, power: 'Sauts plus hauts', a: '#5aff9a', b: '#1a8a5a'},
+  {id: 'aimant', name: 'Aimantée', cost: 700, power: 'Attire les pièces voisines', a: '#ff4a5a', b: '#3a6aff'},
+  {id: 'fusee', name: 'Fusée', cost: 1500, power: 'Départ en jetpack', a: '#ffd84a', b: '#ff4fa8'}];
+const nrChar = () => NR_CHARS.find(c => c.id === nrs.char) || NR_CHARS[0], nrBoard = () => NR_BOARDS.find(b => b.id === nrs.board) || NR_BOARDS[0];
+const nrSprC = {};
+function nrSpr(id = nrs.char) {
+  if (nrSprC[id]) return nrSprC[id];
+  const c = NR_CHARS.find(c => c.id === id) || NR_CHARS[0], pal = {k: '#0a0418', e: '#ffd84a', ...c.pal}, body = c.top.concat(NR_BACK.slice(2)), dress = legs => nrRows(c.top.concat(NR_BACK.slice(2), legs), pal);
+  return nrSprC[id] = {run: [dress(NR_LEGS[0]), dress(NR_LEGS[1])], jump: dress(NR_TUCK), duck: nrRows(NR_DUCK.map((r, i) => i === 6 ? (c.top[1].includes('k') ? c.top[1] : r) : r), pal), rows: body};
 }
-function nrTrain(dark, lit) {
-  const P = dark ? {k: '#07021a', b: '#6a72a8', B: '#4a5080', g: '#1a5a7a', s: '#c02a7a', l: '#ff4a5a'} : {k: '#07021a', b: '#d8dcf0', B: '#9aa3c8', g: '#2ac8e8', s: '#ff4fa8', l: lit ? '#fff4a0' : '#ff8a3a'};
-  return nrCanvas(20, 26, g => {
-    px(g, P.k, 2, 0, 16, 1); px(g, P.k, 0, 2, 20, 24); px(g, P.k, 1, 1, 18, 1); px(g, P.b, 1, 2, 18, 23); px(g, P.b, 2, 1, 16, 1); px(g, P.B, 1, 20, 18, 5);
-    px(g, P.k, 3, 5, 14, 8); px(g, P.g, 4, 6, 12, 6); if (!dark) { px(g, '#c8f8ff', 5, 7, 3, 1); px(g, '#c8f8ff', 5, 8, 1, 2); }
-    px(g, P.s, 1, 14, 18, 2); px(g, P.l, 3, 17, 3, 2); px(g, P.l, 14, 17, 3, 2); px(g, P.k, 6, 22, 8, 2);
-    if (!dark) { px(g, P.k, 9, 0, 2, 2); px(g, '#ffd84a', 8, 13, 4, 1); }  // le pantographe, le numéro
-  });
-}
-const NR_BPAL = {k: '#07021a', r: '#ff4a5a', w: '#e8ecff', c: '#3fe0ff', C: '#c8f8ff', b: '#1fa8d0', j: '#ff4fa8', e: '#ffd84a', g: '#9aa3c8'};
-const NR_SPR = {
-  barrier: nrCanvas(22, 14, g => { px(g, '#07021a', 0, 0, 22, 9); for (let y = 1; y < 8; y++) for (let x = 1; x < 21; x++) px(g, (x + y) % 6 < 3 ? '#ffd84a' : '#ff4fa8', x, y); px(g, '#fff4a0', 1, 1, 20, 1);
-    for (const x of [2, 17]) { px(g, '#07021a', x, 9, 3, 5); px(g, '#c8ccec', x + 1, 9, 1, 5); } px(g, '#ff4a5a', 1, 0, 2, 1); px(g, '#ff4a5a', 19, 0, 2, 1); }),
-  bar: nrCanvas(22, 24, g => { for (const x of [0, 19]) { px(g, '#07021a', x, 0, 3, 24); px(g, '#c8f8ff', x + 1, 0, 1, 24); } px(g, '#07021a', 0, 0, 22, 11); px(g, '#3fe0ff', 1, 1, 20, 9); px(g, '#c8f8ff', 1, 1, 20, 1); px(g, '#1fa8d0', 1, 9, 20, 1);
-    for (const x of [5, 11, 17]) { px(g, '#07021a', x - 1, 2, 2, 4); px(g, '#07021a', x - 3, 5, 6, 1); px(g, '#07021a', x - 2, 6, 4, 1); px(g, '#07021a', x - 1, 7, 2, 1); } }),
-  train: nrTrain(false, false), trainLit: nrTrain(false, true), trainBack: nrTrain(true),
-  coin: [7, 5, 3, 1].map(w => nrCanvas(7, 7, g => { const x = (7 - w) >> 1; px(g, '#07021a', x, 0, w, 7); if (w > 2) { px(g, '#ffd84a', x + 1, 1, w - 2, 5); px(g, '#fff4a0', x + 1, 1, 1, 3); } else px(g, '#ffd84a', x, 1, w, 5); })),
-  lamp: nrCanvas(6, 34, g => { px(g, '#07021a', 2, 4, 2, 30); px(g, '#5a5f8a', 2, 4, 1, 30); px(g, '#07021a', 0, 0, 6, 5); px(g, '#3fe0ff', 1, 1, 4, 3); px(g, '#c8f8ff', 2, 1, 2, 1); }),
-  bollard: nrCanvas(6, 10, g => { px(g, '#07021a', 0, 2, 6, 8); px(g, '#ffd84a', 1, 3, 4, 2); px(g, '#2a2a3a', 1, 5, 4, 4); px(g, '#07021a', 1, 0, 4, 2); px(g, '#c8ccec', 2, 1, 2, 1); }),
-  antenna: nrCanvas(9, 30, g => { px(g, '#07021a', 4, 2, 1, 28); for (const y of [6, 11, 16]) px(g, '#07021a', 1, y, 7, 1); px(g, '#ff4a5a', 3, 0, 3, 3); px(g, '#ffb0b8', 4, 0, 1, 1); }),
-  tower: nrCanvas(16, 30, g => { px(g, '#07021a', 1, 4, 14, 14); px(g, '#7a4a3a', 2, 5, 12, 12); for (let x = 3; x < 14; x += 3) px(g, '#5a3428', x, 5, 1, 12); px(g, '#07021a', 0, 0, 16, 5); px(g, '#5a3428', 1, 1, 14, 3); for (const x of [2, 7, 12]) px(g, '#07021a', x, 18, 2, 12); px(g, '#07021a', 2, 23, 12, 1); }),
-  pillar: nrCanvas(8, 40, g => { px(g, '#07021a', 0, 0, 8, 40); px(g, '#c8ccec', 1, 0, 6, 40); px(g, '#9aa3c8', 5, 0, 2, 40); px(g, '#1fa8d0', 1, 24, 6, 3); px(g, '#ffd84a', 1, 37, 6, 3); }),
-  mag: nrRows(['..kkkkk..', '.krrrrrk.', 'krrkkkrrk', 'krk...krk', 'krk...krk', 'kwk...kwk', 'kwk...kwk', 'kkk...kkk'], NR_BPAL),
-  shield: nrRows(['kkkkkkkkk', 'kcCCccbck', 'kcCcccbck', 'kccccccbk', '.kccccbk.', '.kcccbbk.', '..kccbk..', '...kkk...'], NR_BPAL),
-  board: nrRows(['.kkkkkkkkkk.', 'kjjjjeejjjjk', '.kkkkkkkkkk.', '..kgk..kgk..', '...k....k...'], NR_BPAL),
-  bubble: nrCanvas(20, 26, g => { for (let y = 0; y < 26; y++) for (let x = 0; x < 20; x++) { const d = Math.hypot((x - 9.5) / 10, (y - 12.5) / 13); if (d < 1 && d > .82) px(g, d > .9 ? '#3fe0ff' : '#c8f8ff', x, y); } }),
-};
-const NR_BONUS = {mag: {name: 'Aimant', time: 600}, shield: {name: 'Bouclier', time: 900}, board: {name: 'Planche', time: 900}};
-// ce qu'il faut faire, affiché au bas de chaque voie pour son prochain obstacle : sauter, glisser, changer de voie
-const NR_HINT_PAL = {k: '#07021a', y: '#ffd84a', Y: '#fff4a0', c: '#3fe0ff', C: '#c8f8ff', r: '#ff4a5a', R: '#ffb0b8'};
-const NR_HINT = {
-  barrier: nrRows(['...kkkk...', '..kyYYyk..', '.kyyYYyyk.', 'kyyyYYyyyk', 'kkkyyyykkk', '..kyyyyk..', '..kyyyyk..', '..kyyyyk..', '..kkkkkk..'], NR_HINT_PAL),
-  bar: nrRows(['..kkkkkk..', '..kccCck..', '..kccCck..', '..kccCck..', 'kkkccCckkk', 'kcccCCccck', '.kccCCcck.', '..kcCCck..', '...kkkk...'], NR_HINT_PAL),
-  train: nrRows(['kkk....kkk', 'krRk..kRrk', '.krRkkRrk.', '..krRRrk..', '...kRRk...', '..krRRrk..', '.krRkkRrk.', 'krRk..kRrk', 'kkk....kkk'], NR_HINT_PAL),
-};
-const NR_WHY = {barrier: 'Il fallait sauter la barrière', bar: 'Il fallait glisser sous le panneau', train: 'Il fallait changer de voie'};
-// les lignes d'horizon, dessinées une fois : la ville (fenêtres allumées), le port (grues, bateau, mer), les toits (réservoirs d'eau, antennes)
-const NR_CITY = nrCanvas(320, 60, g => { const r = seeded(7); let x = 0; while (x < 320) { const w = 14 + Math.floor(r() * 22), h = 18 + Math.floor(r() * 40), c = r() < .5 ? '#1a1040' : '#22145a'; px(g, '#07021a', x, 60 - h - 1, w + 1, h + 1); px(g, c, x + 1, 60 - h, w - 1, h);
-  for (let wy = 60 - h + 3; wy < 58; wy += 4) for (let wx = x + 3; wx < x + w - 2; wx += 4) if (r() < .35) px(g, r() < .6 ? '#ffd84a' : '#3fe0ff', wx, wy, 2, 2);
-  if (r() < .3) { px(g, '#ff4fa8', x + 3, 60 - h + 2, w - 6, 2); } x += w + Math.floor(r() * 3); } });
-const NR_PORT = nrCanvas(320, 60, g => { const r = seeded(11);
-  px(g, '#1a2a5a', 0, 50, 320, 10); for (let i = 0; i < 40; i++) px(g, '#5a7ae8', Math.floor(r() * 316), 51 + Math.floor(r() * 8), 3 + Math.floor(r() * 5), 1);
-  for (const cx of [40, 150, 260]) { px(g, '#07021a', cx, 10, 3, 40); px(g, '#ff8a3a', cx + 1, 10, 1, 40); px(g, '#07021a', cx - 30, 10, 60, 3); px(g, '#ff8a3a', cx - 29, 11, 58, 1); px(g, '#07021a', cx + 18, 13, 1, 16); px(g, '#ff4a5a', cx + 1, 6, 2, 3); }
-  px(g, '#07021a', 80, 38, 60, 13); px(g, '#3a3f8a', 81, 39, 58, 11); for (let x = 84; x < 136; x += 8) px(g, ['#ff4a5a', '#3fe0ff', '#5aff9a', '#ffd84a'][(x >> 3) % 4], x, 33, 7, 6); px(g, '#c8ccec', 81, 39, 58, 1);
-  for (let x = 180; x < 320; x += 12) { const h = 6 + Math.floor(r() * 18); px(g, '#07021a', x, 50 - h, 11, h); px(g, ['#a82a3a', '#2a5aa8', '#2a8a5a', '#c8641a'][Math.floor(r() * 4)], x + 1, 51 - h, 9, h - 1); } });
-const NR_ROOFS = nrCanvas(320, 60, g => { const r = seeded(5); let x = 0; while (x < 320) { const w = 24 + Math.floor(r() * 30), h = 8 + Math.floor(r() * 26); px(g, '#07021a', x, 60 - h, w, h); px(g, '#1c1a40', x + 1, 61 - h, w - 2, h - 1); px(g, '#2c2a5a', x + 1, 61 - h, w - 2, 1);
-  for (let wy = 64 - h; wy < 58; wy += 5) for (let wx = x + 3; wx < x + w - 3; wx += 5) if (r() < .25) px(g, '#ffd84a', wx, wy, 2, 2);
-  if (r() < .5) { const tx = x + 4 + Math.floor(r() * (w - 14)); px(g, '#07021a', tx, 60 - h - 12, 10, 8); px(g, '#7a4a3a', tx + 1, 60 - h - 11, 8, 6); px(g, '#07021a', tx + 1, 60 - h - 4, 1, 4); px(g, '#07021a', tx + 8, 60 - h - 4, 1, 4); }
-  else { const ax = x + 4 + Math.floor(r() * (w - 8)); px(g, '#07021a', ax, 60 - h - 14, 1, 14); px(g, '#ff4a5a', ax - 1, 60 - h - 15, 3, 2); } x += w + Math.floor(r() * 6); } });
-// les quartiers : ciel, ligne d'horizon, hauteur des façades (au-dessus du sol), couleurs de la route et des trottoirs, décor
-const NR_DISTS = [
-  {name: 'CENTRE NÉON', sky: ['#07021a', '#0e0530', '#160840', '#22104e', '#34145a', '#4a1a62'], far: NR_CITY, moon: 1, hw: 474, kind: 'tower', deco: 'lamp',
-    road: ['#3a3070', '#43397c'], walk: ['#07021a', '#0b0424'], line: '#c8b8ff', rail: '#ff4fa8', fog: '#2a1050', out: '#07021a'},
-  {name: 'LE PORT', sky: ['#1a0a30', '#3a1040', '#6a1a4a', '#a8304a', '#d8584a', '#ff8a5a'], far: NR_PORT, moon: 0, hw: 214, kind: 'cont', deco: 'bollard',
-    road: ['#5a3a2a', '#6a4630'], walk: ['#24242e', '#2c2c38'], line: '#2a1a12', rail: '#c8ccec', fog: '#8a3a4a', out: '#14141e'},
-  {name: 'LES TOITS', sky: ['#020414', '#060a24', '#0a1234', '#101a44', '#162254', '#1c2a64'], far: NR_ROOFS, moon: 2, hw: 26, kind: 'roof', deco: 'antenna',
-    road: ['#4a4a5a', '#525264'], walk: ['#14142a', '#1a1a34'], line: '#8a8aa0', rail: '#e8e8f0', fog: '#14204a', out: '#0a0e24'},
-  {name: 'LE MÉTRO', sky: ['#05030a', '#05030a', '#08060e', '#0a0812', '#0c0a16', '#100c1a'], far: null, moon: 0, hw: 334, kind: 'metro', deco: 'pillar',
-    road: ['#2a2430', '#302838'], walk: ['#3a3a4a', '#424254'], line: '#ffd84a', rail: '#c8ccec', fog: '#100c1a', out: '#3a3a4a'},
-];
-const nrD = wz => Math.floor(Math.max(0, wz) * 3 / NR.DIST) % NR_DISTS.length;  // le quartier d'un endroit de la rue (3 m par unité)
-const nrMixC = new Map();
-function nrMix(a, b, t) {  // un mélange de deux couleurs, gardé en mémoire (le brouillard des façades lointaines)
-  const k = a + b + t; let v = nrMixC.get(k); if (v) return v;
-  const p = s => [1, 3, 5].map(i => parseInt(s.slice(i, i + 2), 16)); const x = p(a), y = p(b);
-  v = '#' + x.map((c, i) => Math.round(c + (y[i] - c) * t).toString(16).padStart(2, '0')).join(''); nrMixC.set(k, v); return v;
-}
-// une colonne de façade : du sol (yb) au sommet (yt), à la distance z ; wz dit où on est dans la rue
-function nrWall(g, x, yt, yb, z, wz, D) {
-  const S = NR_DISTS[D], f = Math.min(1, Math.max(0, (z - 9) / 16)), fog = c => f > .05 ? nrMix(c, S.fog, Math.round(f * 6) / 6) : c, top = Math.max(0, Math.round(yt)), bot = Math.round(yb);
-  if (bot <= top) return;
-  const bid = Math.floor(wz / 3), fr = wz / 3 - bid, h = nrHash(bid), cell = (wz * 2) % 1;
-  if (S.kind === 'tower') {
-    const base = ['#1a1040', '#22145a', '#181238', '#24103a'][h % 4];
-    px(g, fog(fr < .04 || fr > .97 ? '#07021a' : base), x, top, 1, bot - top);
-    if (fr > .06 && fr < .94 && cell > .22 && cell < .78) for (let k = 0; ; k++) {
-      const wy = yb - (k * 26 + 34) / z, wh = Math.max(1, 13 / z); if (wy + wh < 0 || wy < yt) break;
-      const lit = nrHash(bid * 131 + k * 17 + Math.floor(wz * 2)) % 5; px(g, fog(lit < 2 ? (lit ? '#ffd84a' : '#3fe0ff') : '#0e0828'), x, wy, 1, wh);
-    }
-    if (h % 3 === 0 && fr > .42 && fr < .56) { const c = h % 2 ? '#ff4fa8' : '#3fe0ff'; px(g, fog('#07021a'), x, yb - 250 / z, 1, 150 / z); px(g, fog(c), x, yb - 246 / z, 1, 142 / z); }
-    px(g, fog('#07021a'), x, yb - 8 / z, 1, 8 / z);
-  } else if (S.kind === 'cont') {  // les conteneurs : trois par pile, tôle ondulée
-    for (let k = 0; k < 3; k++) {
-      const c = ['#a82a3a', '#2a5aa8', '#2a8a5a', '#c8641a', '#7a2a8a'][nrHash(bid * 7 + k) % 5], y0 = yb - (k + 1) * 70 / z;
-      if (nrHash(bid * 3 + k * 11) % 4 === 0 && k) continue;  // une pile moins haute de temps en temps
-      px(g, fog(fr < .03 || fr > .98 ? '#07021a' : Math.floor(wz * 14) % 2 ? c : nrMix(c, '#000000', .25)), x, y0, 1, 70 / z);
-      px(g, fog('#07021a'), x, y0, 1, Math.max(1, 3 / z));
-    }
-  } else if (S.kind === 'roof') {  // le parapet du toit
-    px(g, fog('#2c2a5a'), x, top, 1, bot - top); px(g, fog('#c8ccec'), x, top, 1, Math.max(1, 4 / z));
-  } else {  // le métro : carreaux blancs, une bande bleue, des affiches
-    px(g, fog(fr < .02 ? '#5a5f8a' : '#c8ccec'), x, top, 1, bot - top);
-    for (let k = 1; k * 22 < 330; k++) px(g, fog('#9aa3c8'), x, yb - k * 22 / z, 1, Math.max(1, 1.2 / z));
-    px(g, fog('#1fa8d0'), x, yb - 54 / z, 1, 14 / z);
-    if (h % 2 && fr > .3 && fr < .7) { px(g, fog('#07021a'), x, yb - 170 / z, 1, 82 / z); px(g, fog(['#ff4fa8', '#ffd84a', '#5aff9a'][h % 3]), x, yb - 166 / z, 1, 74 / z); }
-    if (cell < .04) px(g, fog('#5a5f8a'), x, top, 1, bot - top);
-  }
-}
+const NR_BOARD_ROWS = ['..kkkkkkkkkk..', '.kaaaaaaaaaaak', 'kbbbbbbbbbbbbk', '.kk.kkkkkk.kk.'];
+const nrBoardImg = b => nrRows(NR_BOARD_ROWS, {k: '#0a0418', a: b.a, b: b.b});
+const NR_ICONS = {mag: nrRows(['.kkk.kkk.', '.krk.kbk.', '.krk.kbk.', '.krk.kbk.', '.krkkkbk.', '.krrrbbk.', '..krrbk..', '...kkk...'], {k: '#0a0418', r: '#ff4a5a', b: '#3a6aff'}),
+  jet: nrRows(['.kkk.kkk.', 'kwwkkkwwk', 'kggk.kggk', 'kggkkkggk', 'kggk.kggk', '.kk...kk.', '.oy...yo.', '..o...o..'], {k: '#0a0418', w: '#e8ecff', g: '#8a90b8', o: '#ff8a3a', y: '#ffd84a'}),
+  x2: nrRows(['.........', 'w.w..www.', '.w.....w.', 'w.w..www.', '.....w...', '.....www.', '.........', '.........'], {w: '#ffffff'})};
+const NR_BONUS = {mag: {name: 'Aimant', time: 600, c: '#ff4a5a'}, jet: {name: 'Jetpack', time: 420, c: '#ff8a3a'}, x2: {name: 'Pièces ×2', time: 600, c: '#5aff9a'}};
+const NR_WHY = {gate: 'Il fallait sauter le laser', beam: 'Il fallait glisser sous la barre', block: 'Il fallait changer de voie'};
+// le décor : ciel en bandes tramées, étoiles, ville et montagnes au néon (dessinés une fois)
+const NR_SKY = nrCanvas(NR.W, NR.HOR, g => { const C = ['#0b0221', '#1a0538', '#2e0a52', '#4a0e66', '#701476', '#9a1a7a', '#c8247a', '#ff3a78'], bh = NR.HOR / C.length, r = seeded(3);
+  for (let y = 0; y < NR.HOR; y++) { const f = y / bh, i = Math.min(C.length - 1, Math.floor(f)), t = f - i; px(g, C[i], 0, y, NR.W, 1);
+    if (i + 1 < C.length && t > .55) for (let x = t > .8 ? y % 2 : (y % 2) * 2; x < NR.W; x += t > .8 ? 2 : 4) px(g, C[i + 1], x, y, 1, 1); }
+  for (let i = 0; i < 46; i++) px(g, r() < .3 ? '#ffffff' : '#b8a8e0', Math.floor(r() * NR.W), Math.floor(r() * 50), 1, 1); });
+const NR_CITY = nrCanvas(320, 46, g => { const r = seeded(9); let x = 0;
+  while (x < 320) { const w = 5 + Math.floor(r() * 11), mid = 1 - Math.abs(x - 160) / 160, h = 6 + Math.floor(r() * (10 + mid * 12)); px(g, '#12042a', x, 46 - h, w, h);
+    if (r() < .5) px(g, r() < .5 ? '#ff4fa8' : '#3fe0ff', x, 46 - h, w, 1);
+    for (let wy = 46 - h + 3; wy < 44; wy += 3) for (let wx = x + 1; wx < x + w - 1; wx += 2) if (r() < .18) px(g, ['#ff4fa8', '#3fe0ff', '#ffd84a'][Math.floor(r() * 3)], wx, wy, 1, 1);
+    if (r() < .2) px(g, '#ff4a5a', x + (w >> 1), 46 - h - 3, 1, 3);
+    x += w + Math.floor(r() * 3); } });
+const nrRidge = (seed, amp, dark, edge) => nrCanvas(320, 60, g => { const r = seeded(seed), pts = []; let v = .5;
+  for (let x = 0; x < 320; x++) { v = Math.max(0, Math.min(1, v + (r() - .5) * .18)); if (x % 40 === 0) v = Math.max(v, r()); pts.push(v); }
+  for (let x = 0; x < 320; x++) { const side = Math.min(1, Math.abs((x + 80) % 160 - 80) / 70), h = Math.round(4 + (pts[x] * .6 + .4) * amp * (.15 + .85 * side)); px(g, dark, x, 60 - h, 1, h); px(g, edge, x, 60 - h, 1, 1); } });
+const NR_RIDGES = [nrRidge(21, 40, '#2a0a4a', '#ff4fa8'), nrRidge(33, 26, '#140530', '#3fe0ff')];
+const nrSX = (X, z) => NR.W / 2 + (X - nr.cam) * NR.F / z, nrSY = (h, z) => NR.HOR + (NR.CH - h) * NR.F / z, nrLX = l => (l - 1) * NR.LW;
 function nrNew() {
-  nr = Object.assign(nr || {tick: 0, raf: 0}, {seen: nr ? nr.tick : 0, mode: 'ready', lane: 1, x: 1, e: 0, ve: 0, duck: 0, obs: [], coins: [], items: [], deco: [], dist: 0, v: .11, spawn: 2, got: 0, shake: 0, record: false, dead: 0, step: 0, why: '',
-    mag: 0, shield: 0, board: 0, inv: 0, saved: 0, banner: 0, district: 0});
-  for (let z = 2; z < NR.FAR; z += 3) nr.deco.push({z});
+  nr = Object.assign(nr || {tick: 0, raf: 0}, {seen: nr ? nr.tick : 0, mode: 'ready', lane: 1, x: 0, cam: 0, e: 0, ve: 0, dj: false, duck: 0, obs: [], coins: [], items: [], letters: [], dist: 0, v: .55, t: 0, beat: -1, got: 0,
+    shake: 0, record: false, dead: 0, step: 0, why: '', mag: 0, jet: 0, x2: 0, inv: 0, shield: nrs.char === 'ninja' ? 1 : 0, boardOn: true, msg: null, jetLane: 1, letterAt: 500 + Math.random() * 900, lastM: 0, dirty: false,
+    flash: 0, lit: 0, noRows: false, jetStart: nrs.board === 'fusee'});
 }
-let nrac = null;
-function nrBeep(f, d, type = 'square', slide = 0) { try { nrac ??= new AudioContext(); const o = nrac.createOscillator(), g = nrac.createGain(), t = nrac.currentTime; o.type = type; o.frequency.setValueAtTime(f, t); if (slide) o.frequency.exponentialRampToValueAtTime(slide, t + d); g.gain.setValueAtTime(.045, t); g.gain.exponentialRampToValueAtTime(.0001, t + d); o.connect(g).connect(nrac.destination); o.start(t); o.stop(t + d + .02); } catch {} }
-function nrStart() { if (nr.mode === 'ready') { nr.mode = 'play'; nrs.runs++; saveGames(); } else if (nr.mode === 'pause') nr.mode = 'play'; else if (nr.mode === 'over' && nr.dead > 40) nrNew(); }
+let nrac = null, nrNoise = null, nrMute = false;
+function nrBeep(f, d, type = 'square', slide = 0, vol = .045) { if (nrMute) return; try { nrac ??= new AudioContext(); const o = nrac.createOscillator(), g = nrac.createGain(), t = nrac.currentTime; o.type = type; o.frequency.setValueAtTime(f, t); if (slide) o.frequency.exponentialRampToValueAtTime(slide, t + d); g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.0001, t + d); o.connect(g).connect(nrac.destination); o.start(t); o.stop(t + d + .02); } catch {} }
+// la musique synthwave : un pas tous les quart de temps (7,5 images), joué par la boucle du jeu, donc calé sur les obstacles ; elle s'étoffe avec la distance
+const NR_PROG = [[110, 220, [0, 3, 7, 12]], [87.31, 174.6, [0, 4, 7, 12]], [130.8, 261.6, [0, 4, 7, 12]], [98, 196, [0, 4, 7, 12]]];  // la mineur, fa, do, sol
+function nrNote(f, d, type, vol, at, cut) { const o = nrac.createOscillator(), g = nrac.createGain(); o.type = type; o.frequency.value = f; g.gain.setValueAtTime(vol, at); g.gain.exponentialRampToValueAtTime(.0001, at + d);
+  if (cut) { const fl = nrac.createBiquadFilter(); fl.type = 'lowpass'; fl.frequency.value = cut; o.connect(fl).connect(g); } else o.connect(g); g.connect(nrac.destination); o.start(at); o.stop(at + d + .02); }
+function nrHitNoise(at, d, vol, hp) { nrNoise ??= (() => { const b = nrac.createBuffer(1, nrac.sampleRate * .3, nrac.sampleRate), x = b.getChannelData(0); for (let i = 0; i < x.length; i++) x[i] = Math.random() * 2 - 1; return b; })();
+  const s = nrac.createBufferSource(), g = nrac.createGain(), fl = nrac.createBiquadFilter(); s.buffer = nrNoise; fl.type = 'highpass'; fl.frequency.value = hp; g.gain.setValueAtTime(vol, at); g.gain.exponentialRampToValueAtTime(.0001, at + d); s.connect(fl).connect(g).connect(nrac.destination); s.start(at); s.stop(at + d + .02); }
+function nrMusic(step) {
+  if (nrMute || !nrs.music || !view.classList.contains('on')) return;
+  try { nrac ??= new AudioContext(); if (nrac.state === 'suspended') nrac.resume(); } catch { return; }
+  const at = nrac.currentTime + .03, s = step % 16, [bass, lead, ch] = NR_PROG[Math.floor(step / 16) % 4], m = nr.dist / 4;
+  if (s % 4 === 0) { const o = nrac.createOscillator(), g = nrac.createGain(); o.frequency.setValueAtTime(150, at); o.frequency.exponentialRampToValueAtTime(40, at + .12); g.gain.setValueAtTime(.16, at); g.gain.exponentialRampToValueAtTime(.0001, at + .16); o.connect(g).connect(nrac.destination); o.start(at); o.stop(at + .2); }
+  if (s === 4 || s === 12) nrHitNoise(at, .14, .06, 1400);
+  if (s % 2 === 0) nrNote(bass * (s % 4 ? 2 : 1), .12, 'sawtooth', .05, at, 520);
+  if (m > 150 && s % 2 === 1) nrHitNoise(at, .03, .025, 7000);
+  if (m > 300 && s % 2 === 0) nrNote(lead * 2 ** (ch[(s >> 1) % 4] / 12), .1, 'square', .014, at);
+  if (s === 0) nrNote(lead / 2 * 2 ** (ch[1] / 12), 1.8, 'triangle', .02, at);
+}
+function nrStart() { if (nr.mode === 'ready') { nr.mode = 'play'; nrs.runs++; saveGames(); if (nr.jetStart) { nr.jet = 180; nr.jetStart = false; } } else if (nr.mode === 'pause') nr.mode = 'play'; else if (nr.mode === 'over' && nr.dead > 40) nrNew(); }
 function nrAct(a) {
   if (nr.mode !== 'play') { nrStart(); return; }
-  if (a === 'L' && nr.lane > 0) { nr.lane--; nrBeep(330, .05); }
-  if (a === 'R' && nr.lane < 2) { nr.lane++; nrBeep(330, .05); }
-  if (a === 'U' && nr.e === 0) { nr.ve = nr.board ? 9.4 : 8; nr.duck = 0; nrBeep(440, .12, 'square', 880); }
-  if (a === 'D') { if (nr.e > 0) nr.ve = Math.min(nr.ve, -8); nr.duck = 38; nrBeep(200, .1, 'triangle', 120); }
+  if (a === 'L' && nr.lane > 0) { nr.lane--; nrBeep(330, .05); nrMis('lane', 1); }
+  if (a === 'R' && nr.lane < 2) { nr.lane++; nrBeep(330, .05); nrMis('lane', 1); }
+  if (a === 'U' && !nr.jet) {
+    if (nr.e === 0) { nr.ve = nrs.board === 'ressort' && nr.boardOn ? 3.05 : 2.65; nr.duck = 0; nrBeep(440, .12, 'square', 880); }
+    else if (nrs.char === 'kiki' && !nr.dj) { nr.dj = true; nr.ve = 2.4; nrBeep(660, .12, 'square', 1320); }
+  }
+  if (a === 'D' && !nr.jet) { if (nr.e > 0) nr.ve = Math.min(nr.ve, -3.5); nr.duck = 40; nrBeep(200, .1, 'triangle', 120); }
 }
-// une rangée d'obstacles au loin ; il reste toujours une voie sans métro ; dans une voie libre, des pièces ou, parfois, un bonus
+// une rangée d'obstacles au loin ; il reste toujours une voie sans camion ; dans une voie libre, des pièces ou, parfois, un bonus
 function nrRow(z) {
-  const trainIn = l => nr.obs.some(o => o.type === 'train' && o.lane === l && o.z + o.len > z - 1.5);
-  const free = [0, 1, 2].filter(l => !trainIn(l)), n = Math.random() < .45 ? 2 : 1;
-  const lanes = free.sort(() => Math.random() - .5).slice(0, Math.min(n, free.length));
-  let trains = 3 - free.length;
+  const blockIn = l => nr.obs.some(o => o.type === 'block' && o.lane === l && o.z + o.len > z - 8), hard = Math.min(1, nr.dist / 8000);
+  const free = [0, 1, 2].filter(l => !blockIn(l)), n = Math.random() < .3 + hard * .35 ? 2 : 1, lanes = free.sort(() => Math.random() - .5).slice(0, Math.min(n, free.length));
+  let blocks = 3 - free.length;
   for (const l of lanes) {
-    let type = ['barrier', 'bar', 'train'][Math.floor(Math.random() * 3)];
-    if (type === 'train' && trains >= 2) type = 'barrier';
-    if (type === 'train') { trains++; nr.obs.push({type, lane: l, z, len: 3 + Math.random() * 4, vz: Math.random() < .3 && nr.dist > 40 ? .05 : 0}); }
-    else nr.obs.push({type, lane: l, z, len: .35, vz: 0});
+    let type = ['gate', 'beam', 'block'][Math.floor(Math.random() * 3)];
+    if (type === 'block' && blocks >= 2) type = 'gate';
+    if (type === 'block') { blocks++; nr.obs.push({type, lane: l, z, len: 30 + Math.random() * 40, vz: Math.random() < .12 + hard * .25 && nr.dist > 600 ? .35 : 0}); }
+    else nr.obs.push({type, lane: l, z, len: 2, vz: 0});
   }
-  const open = [0, 1, 2].filter(l => !lanes.includes(l) && !trainIn(l));
-  if (open.length && Math.random() < .75) {
+  const open = [0, 1, 2].filter(l => !lanes.includes(l) && !blockIn(l));
+  if (open.length && Math.random() < .7) {
     const l = open[Math.floor(Math.random() * open.length)];
-    if (nr.dist > 12 && Math.random() < .09) nr.items.push({type: ['mag', 'shield', 'board'][Math.floor(Math.random() * 3)], lane: l, z: z + 1.4});
-    else for (let i = 0; i < 5; i++) nr.coins.push({lane: l, z: z + i * .7, e: 0});
-  }
-  else if (Math.random() < .5) { const o = nr.obs.at(-1); if (o && o.type === 'barrier') for (let i = 0; i < 3; i++) nr.coins.push({lane: o.lane, z: o.z - .7 + i * .7, e: 50 - Math.abs(i - 1) * 12}); }
+    if (nr.dist > 100 && Math.random() < .08) nr.items.push({type: ['mag', 'jet', 'x2'][Math.floor(Math.random() * 3)], lane: l, z: z + 6});
+    else for (let i = 0; i < 6; i++) nr.coins.push({lane: l, z: z + i * 5, h: 0});
+  } else { const o = nr.obs.at(-1); if (o && o.type === 'gate' && Math.random() < .6) for (let i = 0; i < 5; i++) nr.coins.push({lane: o.lane, z: o.z - 8 + i * 4.5, h: 18 - Math.abs(i - 2) * 6}); }
 }
+// les missions : trois à la fois ; les trois réussies, le multiplicateur de score monte d'un cran et trois nouvelles arrivent
+const NR_MIS = [['gate', 'Sauter des lasers', 10, 5], ['beam', 'Glisser sous des barres', 8, 4], ['coins', 'Pièces en une course', 60, 30, 1], ['lane', 'Changer de voie', 40, 20],
+  ['meters', 'Mètres en une course', 400, 200, 1], ['bonus', 'Attraper des bonus', 3, 2], ['jet', 'Voler en jetpack', 1, 1], ['score', 'Points en une course', 1500, 900, 1]];
+function nrMisSet() { const m = nrs.mis; if (!m.set) m.set = [0, 1, 2].map(i => { const j = (m.lvl * 3 + i) % NR_MIS.length; return {j, n: NR_MIS[j][2] + NR_MIS[j][3] * Math.floor(m.lvl / 2), p: 0, done: false}; }); }
+function nrMis(k, v) {  // v : ce qu'on ajoute (missions en tout) ou la valeur de la course en cours (missions « en une course »)
+  const m = nrs.mis; nrMisSet();
+  for (const s of m.set) { const M = NR_MIS[s.j]; if (s.done || M[0] !== k) continue; s.p = M[4] ? Math.max(s.p, v) : s.p + v; nr.dirty = true;
+    if (s.p >= s.n) { s.p = s.n; s.done = true; nr.msg = {text: 'MISSION RÉUSSIE', sub: M[1], t: 120}; nrBeep(784, .15, 'square', 1568); } }
+  if (m.set.every(s => s.done)) { m.lvl++; m.set = null; nrMisSet(); nr.msg = {text: 'MULTIPLICATEUR ×' + (m.lvl + 1), sub: 'trois nouvelles missions', t: 150}; [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => nrBeep(f, .15), i * 90)); saveGames(); }
+}
+// la chasse du jour : un mot, une lettre à la fois au fil des courses ; le mot complet rapporte 300 pièces
+const NR_WORDS = ['NEON', 'RUSH', 'SYNTH', 'LASER', 'TURBO', 'PIXEL', 'RETRO', 'DISCO', 'COMET', 'NIGHT', 'ORBIT', 'VOLT'];
+const nrDay = () => Math.floor((Date.now() - new Date().getTimezoneOffset() * 6e4) / 864e5);
+function nrWord() { const h = nrs.hunt, d = nrDay(); if (h.day !== d) { h.day = d; h.got = 0; } return NR_WORDS[d % NR_WORDS.length]; }
+const nrMeters = () => Math.floor(nr.dist / 4);
+const nrScore = () => Math.floor(nrMeters() * (nrs.mis.lvl + 1) * (nrs.char === 'etoile' ? 1.25 : 1)) + nr.got * 5;
 function nrHit() {
   nr.mode = 'over'; nr.shake = 14; nr.dead = 0; nrBeep(160, .4, 'sawtooth', 40);
-  const score = nrScore(); nr.record = best('neonrush', score);
-  nrs.coins += nr.got; nrs.wallet += nr.got; nrs.bestCoins = Math.max(nrs.bestCoins, nr.got); nrs.meters += Math.floor(nr.dist * 3); saveGames(); nrInfo(); nrShop();
+  const score = nrScore(); nr.record = best('neonrush', score); nrMis('score', score); nrMis('meters', nrMeters());
+  nrs.coins += nr.got; nrs.wallet += nr.got; nrs.bestCoins = Math.max(nrs.bestCoins, nr.got); nrs.meters += nrMeters(); saveGames(); nrInfo(); nrShop();
 }
-const nrScore = () => Math.floor(nr.dist * 3) + nr.got * 5;
 function nrUpdate() {
   if (nr.shake) nr.shake--;
-  if (nr.mode === 'ready') { nr.dist += .03; return; }
+  nr.cam += (nr.x * .55 - nr.cam) * .15;
+  if (nr.mode === 'ready') { nr.dist += .3; return; }
   if (nr.mode === 'over') { nr.dead++; return; }
-  nr.v = .11 + Math.min(.11, nr.dist / 2500); nr.dist += nr.v; nr.step += nr.v;
-  nr.x += (nr.lane - nr.x) * .3; if (Math.abs(nr.lane - nr.x) < .02) nr.x = nr.lane;
-  if (nr.e > 0 || nr.ve > 0) { nr.e += nr.ve; nr.ve -= .45; if (nr.e <= 0) { nr.e = 0; nr.ve = 0; } }
+  nr.t++; if (nr.t % 7.5 < 1) nrMusic(Math.floor(nr.t / 7.5));
+  const bonusT = k => NR_BONUS[k].time * (nrs.char === 'robo' ? 1.5 : 1);
+  nr.v = .55 + Math.min(.55, nr.dist / 9000); nr.dist += nr.v; nr.step += nr.v;
+  nr.x += (nrLX(nr.lane) - nr.x) * .3; if (Math.abs(nrLX(nr.lane) - nr.x) < .3) nr.x = nrLX(nr.lane);
+  if (nr.jet) { nr.jet--; nr.e += (NR.JET - nr.e) * .08; nr.ve = 0; if (!nr.jet) { nr.inv = 60; nr.ve = -.5; } }
+  else if (nr.e > 0 || nr.ve > 0) { nr.e += nr.ve; nr.ve -= .16; if (nr.e <= 0) { nr.e = 0; nr.ve = 0; nr.dj = false; } }
   if (nr.duck) nr.duck--;
-  for (const k of ['mag', 'shield', 'board', 'inv', 'saved', 'banner']) if (nr[k] > 0) nr[k]--;
-  const D = nrD(nr.dist + NR.PZ); if (D !== nr.district) { nr.district = D; nr.banner = 150; nrBeep(660, .2, 'triangle', 990); }
+  for (const k of ['mag', 'x2', 'inv', 'flash']) if (nr[k] > 0) nr[k]--;
+  if (nr.msg && --nr.msg.t <= 0) nr.msg = null;
+  // une rangée naît quand son arrivée au coureur tombe sur un temps fort (un temps sur deux)
+  const D = NR.FAR - NR.PZ, arrive = nr.t + D / Math.min(1.1, nr.v + D / 18000), bi = Math.floor(arrive / NR.BEAT);  // la vitesse moyenne du trajet : elle monte un peu en route
+  if (bi !== nr.beat && !nr.noRows) { nr.beat = bi;
+    if (nr.jet > 60) { if (bi % 2 === 0) { nr.jetLane = Math.max(0, Math.min(2, nr.jetLane + Math.floor(Math.random() * 3) - 1)); for (let i = 0; i < 6; i++) nr.coins.push({lane: nr.jetLane, z: NR.FAR + i * 5, h: NR.JET}); } }
+    else if (bi % 2 === 0) nrRow(NR.FAR - (arrive - bi * NR.BEAT) * nr.v + nr.v); }
   for (const o of nr.obs) o.z -= nr.v + o.vz;
   for (const c of nr.coins) c.z -= nr.v;
   for (const it of nr.items) it.z -= nr.v;
-  for (const d of nr.deco) { d.z -= nr.v; if (d.z < .5) d.z += NR.FAR - 2; }
-  nr.spawn -= nr.v; if (nr.spawn <= 0) { nrRow(NR.FAR); nr.spawn = 6 - Math.min(1.6, nr.dist / 600); }
-  const lane = Math.round(nr.x), near = (z, len) => z <= NR.PZ + .2 && z + len >= NR.PZ - .2;
-  for (const o of nr.obs) if (o.lane === lane && near(o.z, o.len)) {
-    if (o.type === 'train' || o.type === 'barrier' && nr.e < 34 || o.type === 'bar' && !nr.duck) {
-      if (nr.inv) continue;
-      if (nr.shield || nr.board) { if (nr.shield) nr.shield = 0; else nr.board = 0; nr.inv = 70; nr.saved = 40; nr.shake = 6; nrBeep(520, .25, 'sawtooth', 180); continue; }  // le bouclier ou la planche prend le choc
-      nr.why = NR_WHY[o.type]; nrHit(); return;
-    }
+  for (const L of nr.letters) L.z -= nr.v;
+  // la lettre du jour : elle arrive dans une voie sans camion
+  const word = nrWord();
+  if (nrs.hunt.got < word.length && nr.dist + NR.FAR >= nr.letterAt) { const ok = [0, 1, 2].filter(l => !nr.obs.some(o => o.lane === l && o.z < NR.FAR + 8 && o.z + o.len > NR.FAR - 8));
+    if (ok.length) { nr.letters.push({lane: ok[Math.floor(Math.random() * ok.length)], z: NR.FAR, ch: word[nrs.hunt.got]}); nr.letterAt = nr.dist + NR.FAR + 900 + Math.random() * 900; } else nr.letterAt += 20; }
+  const lane = Math.round(nr.x / NR.LW + 1);
+  for (const o of nr.obs) {
+    if (!o.counted && o.z + o.len < NR.PZ - 1.5) { o.counted = true; if (o.lane === lane && !nr.jet && o.type !== 'block') nrMis(o.type, 1); }
+    if (o.lane !== lane || o.z > NR.PZ + 1.5 || o.z + o.len < NR.PZ - 1.5) continue;
+    const hit = o.type === 'block' ? nr.e < NR.BOX : o.type === 'gate' ? nr.e < NR.GATE : !(nr.duck && nr.e < 6) && nr.e < 20;
+    if (!hit || nr.inv || nr.jet) continue;
+    if (nr.shield) { nr.shield = 0; nr.inv = 90; nr.shake = 6; nr.msg = {text: 'BOUCLIER !', sub: 'il a pris le choc', t: 70}; nrBeep(520, .25, 'sawtooth', 180); continue; }
+    if (nr.boardOn) { nr.boardOn = false; nr.inv = 90; nr.shake = 6; nr.msg = {text: 'PLANCHE CASSÉE', sub: 'elle t\'a sauvé', t: 80}; nrBeep(520, .25, 'sawtooth', 180); continue; }
+    nr.why = NR_WHY[o.type]; return nrHit();
   }
-  // l'aimant attire les pièces des trois voies
-  if (nr.mag) for (const c of nr.coins) if (c.z < 6 && c.z > NR.PZ - .4) { c.lane += (nr.x - c.lane) * .22; c.e += (nr.e - c.e) * .22; c.z -= (c.z - NR.PZ) * .08; }
-  for (const c of nr.coins) if (!c.got && Math.abs(c.lane - nr.x) < .4 && Math.abs(c.z - NR.PZ) < .3 && Math.abs(c.e - nr.e) < 40) { c.got = true; nr.got++; nrBeep(1320, .06, 'square', 1760); }
-  for (const it of nr.items) if (!it.got && it.lane === lane && Math.abs(it.z - NR.PZ) < .35 && nr.e < 60) { it.got = true; nr[it.type] = NR_BONUS[it.type].time; nrs.bonus++; nrBeep(880, .3, 'triangle', 1760); }
-  nr.obs = nr.obs.filter(o => o.z + o.len > .6); nr.coins = nr.coins.filter(c => !c.got && c.z > .6); nr.items = nr.items.filter(i => !i.got && i.z > .6);
+  // l'aimant attire les pièces des trois voies ; la planche aimantée, celles des voies voisines, de plus près
+  const pull = nr.mag ? 70 : nrs.board === 'aimant' && nr.boardOn ? 22 : 0;
+  if (pull) for (const c of nr.coins) if (c.z < NR.PZ + pull && c.z > NR.PZ - 2 && (nr.mag || Math.abs(c.lane - nr.x / NR.LW - 1) < 1.5)) { c.lane += (nr.x / NR.LW + 1 - c.lane) * .25; c.h += (nr.e - c.h) * .25; c.z -= (c.z - NR.PZ) * .12; }
+  for (const c of nr.coins) if (!c.got && Math.abs(nrLX(c.lane) - nr.x) < 10 && Math.abs(c.z - NR.PZ) < 2.4 && Math.abs(c.h - nr.e) < 14) { c.got = true; nr.got += nr.x2 ? 2 : 1; nr.lit = 8; nrBeep(1320, .06, 'square', 1760, .03); nrMis('coins', nr.got); }
+  for (const it of nr.items) if (!it.got && it.lane === lane && Math.abs(it.z - NR.PZ) < 2.4 && Math.abs(nr.e - 6) < 20) { it.got = true; nr[it.type] = bonusT(it.type); nrs.bonus++; nrBeep(880, .3, 'triangle', 1760); nrMis('bonus', 1); if (it.type === 'jet') nrMis('jet', 1); nr.msg = {text: NR_BONUS[it.type].name.toUpperCase(), sub: '', t: 60}; }
+  for (const L of nr.letters) if (!L.got && L.lane === lane && Math.abs(L.z - NR.PZ) < 2.4 && Math.abs(nr.e - 8) < 22) { L.got = true; nrs.hunt.got++; nr.flash = 20; nrBeep(988, .25, 'triangle', 1976);
+    if (nrs.hunt.got >= word.length) { nrs.wallet += 300; nrs.hunt.words++; nr.msg = {text: 'MOT DU JOUR : ' + word, sub: '+300 pièces', t: 160}; } else nr.msg = {text: 'LETTRE ' + L.ch, sub: word.slice(0, nrs.hunt.got) + '·'.repeat(word.length - nrs.hunt.got), t: 90}; saveGames(); nr.dirty = true; }
+  if (nr.t - nr.lastM >= 60) { nr.lastM = nr.t; nrMis('meters', nrMeters()); nrMis('score', nrScore()); if (nr.dirty) { nr.dirty = false; nrMisUI(); } }
+  nr.obs = nr.obs.filter(o => o.z + o.len > 2); nr.coins = nr.coins.filter(c => !c.got && c.z > 2); nr.items = nr.items.filter(i => !i.got && i.z > 2); nr.letters = nr.letters.filter(L => !L.got && L.z > 2);
 }
-const nrY = z => NR.HOR + (NR.H - NR.HOR) / z;
-function nrPut(g, img, z, lane, e = 0, alpha = 1) {  // un sprite posé au sol à la distance z, centré sur sa voie
-  const s = NR.U / z, w = img.width * s, h = img.height * s, x = NR.W / 2 + (lane - 1) * NR.LANE / z - w / 2, y = nrY(z) - h - e / z;
-  g.globalAlpha = alpha * Math.max(0, Math.min(1, (NR.FAR - z) / 5)); g.drawImage(img, Math.round(x), Math.round(y), Math.round(w), Math.round(h)); g.globalAlpha = 1;
+// le dessin : formes en perspective, bords au néon
+const nrP = (X, h, z) => [nrSX(X, z), nrSY(h, z)];
+function nrPoly(g, pts, fill, line, lw = 1) { g.beginPath(); pts.forEach(([x, y], i) => i ? g.lineTo(x, y) : g.moveTo(x, y)); g.closePath(); if (fill) { g.fillStyle = fill; g.fill(); } if (line) { g.strokeStyle = line; g.lineWidth = lw; g.stroke(); } }
+function nrBox(g, X0, X1, z0, z1, h, face, top, side, edge) {  // une boîte : côtés visibles, dessus, puis la face avant
+  z0 = Math.max(z0, 4); z1 = Math.min(z1, NR.FAR); if (z1 <= z0) return; const lw = Math.max(1, NR.F / z0 * .5);
+  if (nr.cam < X0) nrPoly(g, [nrP(X0, 0, z0), nrP(X0, h, z0), nrP(X0, h, z1), nrP(X0, 0, z1)], side, edge, lw);
+  if (nr.cam > X1) nrPoly(g, [nrP(X1, 0, z0), nrP(X1, h, z0), nrP(X1, h, z1), nrP(X1, 0, z1)], side, edge, lw);
+  nrPoly(g, [nrP(X0, h, z0), nrP(X1, h, z0), nrP(X1, h, z1), nrP(X0, h, z1)], top, edge, lw);
+  nrPoly(g, [nrP(X0, 0, z0), nrP(X1, 0, z0), nrP(X1, h, z0), nrP(X0, h, z0)], face, edge, lw);
+}
+const nrFade = z => Math.max(0, Math.min(1, (NR.FAR - z) / 40));
+function nrDrawObs(g, o) {
+  const X = nrLX(o.lane), s = NR.F / Math.max(4, o.z); g.globalAlpha = nrFade(o.z);
+  if (o.type === 'block') {
+    const hot = o.vz > 0, edge = hot ? '#ff8a3a' : '#ff4fa8';
+    nrBox(g, X - 11, X + 11, o.z, o.z + o.len, NR.BOX, '#1a0a3a', '#2e1660', '#120628', edge);
+    if (o.z > 4) { const [x0, y0] = nrP(X - 9, 22, o.z), [x1] = nrP(X + 9, 22, o.z); px(g, hot ? '#ffd84a' : '#3fe0ff', x0, y0, x1 - x0, Math.max(1, s * .6));
+      const [a0, b0] = nrP(X - 9, 14, o.z); px(g, '#3a1a70', a0, b0, x1 - x0, Math.max(1, s * .5));
+      if (hot) for (const dx of [-7, 5]) { const [hx, hy] = nrP(X + dx, 6, o.z); px(g, '#fff4a0', hx, hy, Math.max(1, s * 2), Math.max(1, s * 1.5)); } }
+  } else if (o.type === 'gate') {
+    const z = Math.max(4, o.z), [l, yb] = nrP(X - 11, 0, z), [r] = nrP(X + 11, 0, z), yt = nrSY(NR.GATE, z), pw = Math.max(1, s * 1.2);
+    g.fillStyle = 'rgba(255,58,74,.16)'; g.fillRect(l, yt, r - l, yb - yt);
+    px(g, '#2a1450', l - pw, yt, pw, yb - yt); px(g, '#2a1450', r, yt, pw, yb - yt);
+    for (const h of [3.5, 8]) { const y = nrSY(h, z), th = Math.max(1, s * .7); g.fillStyle = 'rgba(255,58,74,.35)'; g.fillRect(l, y - th, r - l, th * 3); px(g, nr.tick % 8 < 4 ? '#ff3a4a' : '#ff8a8a', l, y, r - l, th); }
+  } else {
+    const z = Math.max(4, o.z), [l, yb] = nrP(X - 12, 0, z), [r] = nrP(X + 12, 0, z), y0 = nrSY(19, z), y1 = nrSY(NR.BEAM, z), pw = Math.max(1, s * 1.2);
+    px(g, '#2a1450', l - pw, y0, pw, yb - y0); px(g, '#2a1450', r, y0, pw, yb - y0);
+    g.fillStyle = 'rgba(255,216,74,.25)'; g.fillRect(l - pw, y0 - pw, r - l + pw * 2, y1 - y0 + pw * 2); px(g, '#ffd84a', l, y0, r - l, y1 - y0);
+    const st = Math.max(2, Math.round(s * 3)); for (let x = l + ((nr.tick >> 2) % 2) * st; x < r - st / 2; x += st * 2) px(g, '#1a0a3a', x, y0, Math.min(st, r - x), y1 - y0);
+  }
+  g.globalAlpha = 1;
+}
+function nrDrawCoin(g, c) {
+  const s = NR.F / c.z, [x, y] = nrP(nrLX(c.lane), c.h + 5, c.z), r = Math.max(1, 3 * s), w = Math.max(.5, r * Math.abs(Math.cos(nr.tick / 8 + c.z * .08)));
+  g.globalAlpha = nrFade(c.z); nrPoly(g, [[x, y - r], [x + w, y], [x, y + r], [x - w, y]], '#ffd84a', s > 1.2 ? '#fff4a0' : null); if (s > 1.5) px(g, '#ffffff', x - 1, y - r * .5, 1, 1); g.globalAlpha = 1;
+}
+function nrDrawItem(g, it, icon, color, label) {
+  const s = NR.F / it.z, [x, y] = nrP(nrLX(it.lane), 10 + Math.sin(nr.tick / 10) * 2, it.z), r = Math.max(2, 6 * s);
+  g.globalAlpha = nrFade(it.z); g.fillStyle = color + '55'; g.beginPath(); g.arc(x, y, r * 1.3, 0, 6.283); g.fill(); g.fillStyle = '#0a0418'; g.beginPath(); g.arc(x, y, r, 0, 6.283); g.fill(); g.strokeStyle = color; g.lineWidth = Math.max(1, s * .5); g.stroke();
+  if (icon) { const k = s * .55; g.drawImage(icon, Math.round(x - icon.width * k / 2), Math.round(y - icon.height * k / 2), Math.round(icon.width * k), Math.round(icon.height * k)); }
+  if (label && s > .9) pxFont(g, label, x, y + 4 * Math.min(2, s * .6), '#fff4a0', s > 2 ? 12 : 8, 'center');
+  g.globalAlpha = 1;
 }
 function nrDraw() {
-  const g = nr.g, {W, H, HOR} = NR, cx = W / 2, here = nrD(nr.dist + NR.PZ), skyD = here === 3 ? nrD(nr.dist + NR.FAR) : here, S0 = NR_DISTS[skyD];
+  const g = nr.g, {W, H, HOR} = NR, cx = W / 2;
   for (; nr.seen < nr.tick; nr.seen++) if (nr.mode !== 'play') nrUpdate();
   g.imageSmoothingEnabled = false; g.save();
   if (nr.shake) g.translate(Math.round((Math.random() - .5) * nr.shake), Math.round((Math.random() - .5) * nr.shake));
-  // le ciel du quartier, sa lune ou ses étoiles, sa ligne d'horizon (légère parallaxe quand on change de voie)
-  S0.sky.forEach((c, i) => px(g, c, 0, i * HOR / S0.sky.length, W, HOR / S0.sky.length + 1));
-  if (skyD !== 3) for (let i = 0; i < (skyD === 2 ? 60 : 24); i++) px(g, i % 5 ? '#b8a8e0' : '#ffffff', (i * 53 + 7) % W, (i * 29 + (i >> 3) * 7) % (skyD === 2 ? 60 : 40), 1, 1);
-  if (S0.moon === 1) { px(g, '#fff4e0', 160, 12, 12, 12); px(g, '#ffd8b0', 168, 12, 4, 12); px(g, '#07021a', 158, 14, 2, 8); px(g, '#07021a', 172, 14, 2, 8); }
-  if (S0.moon === 2) { for (let dy = -10; dy <= 10; dy++) { const w = Math.round(Math.sqrt(100 - dy * dy)); px(g, '#fff4e0', 48 - w, 22 + dy, 2 * w, 1); } px(g, '#e8dcc0', 44, 18, 4, 3); px(g, '#e8dcc0', 50, 26, 3, 3); }
-  if (skyD === 1) { px(g, '#ffd84a', 96, 52, 24, 8); px(g, '#ffb03a', 92, 56, 32, 6); }  // le soleil couchant derrière le port
-  if (S0.far) g.drawImage(S0.far, Math.round(-52 - (nr.x - 1) * 10 - (nr.dist * .5) % 1), HOR - 58);
-  // le plafond du métro (une ligne d'écran = une distance, comme la route), avec ses néons
-  for (let y = 0; y < HOR; y++) {
-    const z = 120 / (HOR - y); if (z > NR.FAR) break; const wz = z + nr.dist; if (nrD(wz) !== 3) continue;
-    px(g, Math.floor(wz * .8) % 2 ? '#14121c' : '#1a1824', 0, y, W, 1);
-    if ((wz * .5) % 1 < .12) px(g, '#fff4a0', cx - 30 / z, y, 60 / z, 1);
+  // le ciel, le soleil rayé, la ville en ombre devant lui, les montagnes au néon
+  g.drawImage(NR_SKY, 0, 0);
+  for (let i = 0; i < 6; i++) if ((nr.tick + i * 37) % 90 < 20) px(g, '#ffffff', (i * 71 + 13) % W, (i * 23 + 5) % 44, 1, 1);
+  const sx = cx - nr.cam * .15, R = 38, sy = HOR - 2;
+  for (let dy = -R; dy <= 0; dy++) { const y = sy + dy, w = Math.sqrt(R * R - dy * dy), k = (dy + R) / R;
+    if (k > .45 && ((dy + R) + nr.tick * .2) % 7 < 1 + (k - .45) * 7) continue;
+    px(g, nrMix('#fff27a', '#ff2a8a', k), sx - w, y, w * 2, 1); }
+  const wrap = (img, off, y) => { const o = ((off % 320) + 320) % 320; g.drawImage(img, -o, y); g.drawImage(img, 320 - o, y); };
+  wrap(NR_CITY, 52 + nr.cam * .25, HOR - 46); wrap(NR_RIDGES[0], 52 + nr.cam * .4 + nr.dist * .01, HOR - 60); wrap(NR_RIDGES[1], 52 + nr.cam * .6 + nr.dist * .02, HOR - 60);
+  // le sol, ligne par ligne : grille au néon qui défile, piste sombre, tirets roses, rails cyan
+  for (let y = HOR; y < H; y++) {
+    const z = NR.CH * NR.F / (y - HOR + .5), s = NR.F / z, wz = z + nr.dist, fog = Math.min(1, z / NR.FAR) ** .55, half = 1.5 * NR.LW * s, tx = cx - nr.cam * s;
+    px(g, nrMix('#0d0322', '#3a0a52', fog), 0, y, W, 1);
+    const dz = z * z / (NR.CH * NR.F), gl = nrMix('#ff3aa8', '#4a0e60', fog);
+    if (Math.floor(wz / 13) !== Math.floor((wz + dz) / 13)) px(g, gl, 0, y, W, 1);
+    else for (let k = 0; k <= 14; k++) for (const sg of [-1, 1]) { const x = cx + (sg * (1.5 * NR.LW + 6 + k * 13) - nr.cam) * s; if (x >= 0 && x < W) px(g, gl, x, y, 1, 1); }
+    px(g, nrMix(Math.floor(wz / 8) % 2 ? '#170a32' : '#140828', '#3a0a52', fog), tx - half, y, half * 2, 1);
+    const lw = Math.max(1, Math.round(s * .9));
+    if ((wz / 12) % 1 < .5) for (const sg of [-1, 1]) px(g, nrMix('#ff4fa8', '#4a0e60', fog), tx + sg * NR.LW / 2 * s - lw / 2, y, lw, 1);
+    for (const sg of [-1, 1]) { const rx = tx + sg * half - (sg > 0 ? lw : 0); px(g, nrMix('#1a6a9a', '#3a0a52', fog), rx + sg * lw, y, lw, 1); px(g, nrMix('#7ff4ff', '#4a0e60', fog), rx, y, lw, 1); }
   }
-  // la route, ligne par ligne : bandes qui défilent, lignes de voie, bordures ; les rails et les traverses dans le métro
-  for (let y = HOR + 1; y < H; y++) {
-    const z = (H - HOR) / (y - HOR), s = 1 / z, wz = z + nr.dist, half = NR.LANE * 1.5 * s, wall = NR.WALL * NR.LANE * s, S = NR_DISTS[nrD(wz)], band = Math.floor(wz * .8) % 2;
-    px(g, S.out, 0, y, W, 1); px(g, S.walk[band], cx - wall, y, wall * 2, 1);
-    px(g, S.road[Math.floor(wz * 1.2) % 2], cx - half, y, half * 2, 1);
-    const lw = Math.max(1, Math.round(4 * s));
-    if (S === NR_DISTS[3]) {
-      if (Math.floor(wz * 3) % 2) for (const k of [-1, 0, 1]) px(g, '#4a3428', cx + (k * NR.LANE - NR.LANE * .4) * s, y, NR.LANE * .8 * s, 1);
-      for (const k of [-1, 0, 1]) for (const r of [-.22, .22]) px(g, S.rail, cx + (k + r) * NR.LANE * s - lw / 4, y, Math.max(1, lw / 2), 1);
-      px(g, S.line, cx - half - lw * 2, y, lw, 1); px(g, S.line, cx + half + lw, y, lw, 1);
-    } else {
-      if (S === NR_DISTS[1]) { if ((wz * 4) % 1 < .18) px(g, S.line, cx - half, y, half * 2, 1); }
-      else if (Math.floor(wz * 1.6) % 2) for (const k of [-1, 1]) px(g, S.line, cx + k * NR.LANE / 2 * s - lw / 2, y, lw, 1);
-      for (const k of [-1, 1]) { px(g, '#07021a', cx + k * half - (k > 0 ? lw + 1 : -1), y, lw + 1, 1); px(g, S.rail, cx + k * half - (k > 0 ? lw : 0), y, lw, 1); }
-    }
-  }
-  // les façades, colonne par colonne, des deux côtés
-  for (let x0 = 0; x0 < cx; x0++) {
-    const z = NR.WALL * NR.LANE / (cx - x0 - .5); if (z > NR.FAR) break; const wz = z + nr.dist, D = nrD(wz), yb = nrY(z), yt = yb - NR_DISTS[D].hw / z;
-    nrWall(g, x0, yt, yb, z, wz, D); nrWall(g, W - 1 - x0, yt, yb, z, wz + 1.5, D);
-  }
-  // les objets, du plus loin au plus proche (le coureur compris)
-  const items = [];
-  for (const d of nr.deco) { const kind = NR_DISTS[nrD(d.z + nr.dist)].deco; if (kind === 'antenna' && Math.floor(d.z + nr.dist) % 2) { for (const l of [-.75, 2.75]) items.push([d.z, () => nrPut(g, NR_SPR.tower, d.z, l)]); continue; } for (const l of [-.7, 2.7]) items.push([d.z, () => nrPut(g, NR_SPR[kind], d.z, l)]); }
-  for (const o of nr.obs) {
-    if (o.type !== 'train') { items.push([o.z, () => nrPut(g, NR_SPR[o.type], o.z, o.lane)]); continue; }
-    for (let z = Math.min(o.z + o.len, NR.FAR); z > Math.max(o.z, 1.25) + .01; z -= .3) items.push([z, () => nrPut(g, NR_SPR.trainBack, z, o.lane)]);
-    if (o.z > 1.25) items.push([o.z - .01, () => nrPut(g, o.vz ? NR_SPR.trainLit : NR_SPR.train, o.z, o.lane)]);
-  }
-  const cf = Math.floor(nr.tick / 6) % 6;
-  for (const c of nr.coins) items.push([c.z, () => nrPut(g, NR_SPR.coin[[0, 1, 2, 3, 2, 1][cf]], c.z, c.lane, c.e)]);
-  for (const it of nr.items) items.push([it.z, () => { nrPut(g, NR_SPR[it.type], it.z, it.lane, 14 + Math.sin(nr.tick / 8) * 5); if (nr.tick % 20 < 10) nrPut(g, NR_SPR.coin[3], it.z, it.lane + .14, 46); }]);
-  const sp = nrSpr(), cyc = Math.floor(nr.step * 4.4) % 4;
-  const body = nr.mode === 'over' || nr.duck ? sp.duck : nr.e > 0 ? sp.jump : [sp.run, sp.pass, sp.run2, sp.pass][cyc];
-  items.push([NR.PZ, () => {
-    const s = NR.U / NR.PZ; g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(Math.round(cx + (nr.x - 1) * NR.LANE / NR.PZ - 8 * s), Math.round(nrY(NR.PZ) - 2), Math.round(16 * s), 3);
-    const lift = nr.board ? 5 * NR.U : 0, blink = nr.inv && Math.floor(nr.tick / 4) % 2;
-    if (nr.board) nrPut(g, NR_SPR.board, NR.PZ, nr.x, nr.e);
-    if (!blink) nrPut(g, body, NR.PZ, nr.x, nr.e + lift);
-    if (nr.shield) nrPut(g, NR_SPR.bubble, NR.PZ, nr.x, nr.e + lift - 6, .8);
+  // de chaque côté, des pylônes lumineux ; de loin en loin, une arche au-dessus de la route ; puis les obstacles, du plus loin au plus proche
+  const list = [];
+  for (let n = Math.ceil((nr.dist + 4) / 20); n * 20 - nr.dist < NR.FAR; n++) { const z = n * 20 - nr.dist; list.push([z, () => {
+    const s = NR.F / z; g.globalAlpha = nrFade(z);
+    for (const sg of [-1, 1]) { const X = sg * (1.5 * NR.LW + 12), [x, y0] = nrP(X, 0, z), y1 = nrSY(30, z), w = Math.max(1, s * 1.2), lc = (n + (sg > 0)) % 2 ? '#ff4fa8' : '#3fe0ff';
+      px(g, '#2a1450', x - w / 2, y1, w, y0 - y1); px(g, lc, x - w * 1.2, y1 - w * 2, w * 2.4, w * 2.4); }
+    if (n % 10 === 0) { const [l, yb] = nrP(-1.5 * NR.LW - 5, 0, z), [r] = nrP(1.5 * NR.LW + 5, 0, z), yt = nrSY(NR.ARCH, z), w = Math.max(1, s * 2), c = (n / 10) % 2 ? '#ff4fa8' : '#3fe0ff';
+      px(g, '#1a0a3a', l - w, yt, w, yb - yt); px(g, '#1a0a3a', r, yt, w, yb - yt); px(g, c, l - w, yt, w * .4 + 1, yb - yt); px(g, c, r + w * .6, yt, w * .4 + 1, yb - yt); px(g, '#1a0a3a', l - w, yt - w, r - l + 2 * w, w * 1.5); px(g, c, l - w, yt - w, r - l + 2 * w, Math.max(1, w * .4)); }
+    g.globalAlpha = 1; }]); }
+  for (const o of nr.obs) list.push([Math.max(4, o.z), () => nrDrawObs(g, o)]);
+  for (const c of nr.coins) list.push([c.z, () => nrDrawCoin(g, c)]);
+  for (const it of nr.items) list.push([it.z, () => nrDrawItem(g, it, NR_ICONS[it.type], NR_BONUS[it.type].c)]);
+  for (const L of nr.letters) list.push([L.z, () => nrDrawItem(g, L, null, '#b070ff', L.ch)]);
+  // le coureur : ombre au sol, planche, corps, flammes du jetpack, bulle du bouclier
+  const sp = nrSpr(), body = nr.mode === 'over' || (nr.duck && nr.e < 6) ? sp.duck : nr.e > 0 && !nr.jet ? sp.jump : sp.run[Math.floor(nr.step / 5) % 2];
+  list.push([NR.PZ, () => {
+    const [x, gy] = nrP(nr.x, 0, NR.PZ), y = Math.round(nrSY(nr.e, NR.PZ)), K = 2, bw = body.width * K, bh = body.height * K, sh = Math.max(4, 14 - nr.e / 4);
+    g.fillStyle = 'rgba(0,0,0,.45)'; g.fillRect(Math.round(x - sh), Math.round(gy - 2), Math.round(sh * 2), 3);
+    if (nr.inv && (nr.tick >> 2) % 2) return;
+    const lift = nr.boardOn ? 6 : 0;
+    if (nr.boardOn) { const bi = nrBoardImgC[nrs.board] ??= nrBoardImg(nrBoard()); g.drawImage(bi, Math.round(x - bi.width), y - bi.height * 2 + 2, bi.width * 2, bi.height * 2); }
+    if (nr.jet) { px(g, '#8a90b8', x - 7, y - bh + 14 - lift, 4, 12); px(g, '#8a90b8', x + 3, y - bh + 14 - lift, 4, 12); const f = 4 + (nr.tick % 4); px(g, '#ff8a3a', x - 7, y + 3 - lift, 4, f); px(g, '#ff8a3a', x + 3, y + 3 - lift, 4, f); px(g, '#ffd84a', x - 6, y + 3 - lift, 2, f - 2); px(g, '#ffd84a', x + 4, y + 3 - lift, 2, f - 2); }
+    g.drawImage(body, Math.round(x - bw / 2), y - bh - lift, bw, bh);
+    if (nr.shield) { g.strokeStyle = (nr.tick >> 3) % 2 ? '#3fe0ff' : '#c8f8ff'; g.lineWidth = 1; g.beginPath(); g.arc(x, y - bh / 2 - lift, bh * .62, 0, 6.283); g.stroke(); }
+    if (nr.lit) { g.fillStyle = 'rgba(255,216,74,' + (nr.lit / 30).toFixed(2) + ')'; g.beginPath(); g.arc(x, y - bh / 2 - lift, 12, 0, 6.283); g.fill(); }
   }]);
-  items.sort((a, b) => b[0] - a[0]).forEach(([, f]) => f());
+  list.sort((a, b) => b[0] - a[0]).forEach(([, f]) => f());
+  // les traits de vitesse
+  if (nr.mode === 'play' && nr.v > .7) for (let i = 0; i < 4; i++) { const k = (nr.tick * 9 + i * 61) % 100 / 100, side = i % 2 ? 1 : -1, x = cx + side * (40 + k * 90), y = HOR + 30 + k * 150; px(g, 'rgba(200,248,255,.5)', x, y, 1, 4 + k * 10); }
   g.restore();
-  // les panneaux d'alerte : le prochain obstacle de chaque voie, de plus en plus visible, clignotant quand il est tout près
-  if (nr.mode === 'play') for (const lane of [0, 1, 2]) {
-    const o = nr.obs.filter(o => o.lane === lane && o.z + o.len > NR.PZ && o.z < 11).sort((a, b) => a.z - b.z)[0];
-    if (!o || (o.z < 4 && Math.floor(nr.tick / 5) % 2)) continue;
-    const img = NR_HINT[o.type], s = 2, x = Math.round(cx + (lane - 1) * 62 - img.width * s / 2), y = H - img.height * s - 6;
-    g.drawImage(img, x, y, img.width * s, img.height * s);
-  }
-  // le bandeau du haut : score, pièces, bonus en cours avec leur temps
+  if (nr.flash) { g.fillStyle = 'rgba(176,112,255,' + (nr.flash / 60).toFixed(2) + ')'; g.fillRect(0, 0, W, H); }
+  // le bandeau du haut : score, multiplicateur, pièces, bonus en cours
   if (nr.mode !== 'ready') {
-    px(g, 'rgba(7,2,26,.7)', 0, 0, W, 22); px(g, '#ff4fa8', 0, 22, W, 1);
-    pxFont(g, String(nrScore()), 6, 16, '#ffffff', 12); g.drawImage(NR_SPR.coin[0], W - 46, 7, 14, 14); pxFont(g, String(nr.got), W - 28, 16, '#ffd84a', 12);
-    let bx = 6; for (const k of ['mag', 'shield', 'board']) if (nr[k]) { const im = NR_SPR[k]; g.drawImage(im, bx, 27, im.width * 2, im.height * 2); px(g, '#07021a', bx, 45, 26, 4); px(g, nr[k] < 120 && nr.tick % 10 < 5 ? '#ff4a5a' : '#5aff9a', bx + 1, 46, Math.ceil(24 * nr[k] / NR_BONUS[k].time), 2); bx += 32; }
+    px(g, 'rgba(7,2,26,.72)', 0, 0, W, 22); px(g, '#ff4fa8', 0, 22, W, 1);
+    pxFont(g, String(nrScore()), 6, 16, '#ffffff', 12); pxFont(g, '×' + (nrs.mis.lvl + 1), 6, 32, '#ff4fa8', 8);
+    nrPoly(g, [[W - 40, 6], [W - 35, 11], [W - 40, 16], [W - 45, 11]], '#ffd84a', '#fff4a0'); pxFont(g, String(nr.got), W - 30, 16, '#ffd84a', 12);
+    let bx = W - 34; for (const k of ['mag', 'jet', 'x2']) if (nr[k] > 0 || (k === 'jet' && nr.jet)) { const left = nr[k], full = NR_BONUS[k].time * (nrs.char === 'robo' ? 1.5 : 1); g.drawImage(NR_ICONS[k], bx, 27, 18, 16);
+      px(g, '#07021a', bx, 45, 26, 4); px(g, left < 120 && nr.tick % 10 < 5 ? '#ff4a5a' : NR_BONUS[k].c, bx + 1, 46, Math.ceil(24 * Math.min(1, left / full)), 2); bx -= 30; }
   }
-  if (nr.saved) pxFont(g, 'SAUVÉ !', cx, 70, '#5aff9a', 12, 'center');
-  if (nr.banner && nr.mode === 'play') { const y = 54; px(g, 'rgba(7,2,26,.8)', 0, y, W, 30); px(g, '#ff4fa8', 0, y, W, 1); px(g, '#ff4fa8', 0, y + 29, W, 1); pxFont(g, 'QUARTIER', cx, y + 12, '#b8a8e0', 8, 'center'); pxFont(g, NR_DISTS[nr.district].name, cx, y + 25, '#ffd84a', 12, 'center'); }
+  if (nr.msg && nr.mode === 'play') { const y = 56; px(g, 'rgba(7,2,26,.8)', 0, y, W, nr.msg.sub ? 30 : 18); px(g, '#ff4fa8', 0, y, W, 1); pxFont(g, nr.msg.text, cx, y + 13, '#ffd84a', 8, 'center'); if (nr.msg.sub) pxFont(g, nr.msg.sub, cx, y + 25, '#c8f8ff', 8, 'center'); }
   if (nr.mode === 'over') { g.fillStyle = `rgba(255,40,90,${Math.max(0, .35 - nr.dead / 60)})`; g.fillRect(0, 0, W, H); }
-  if (nr.mode === 'ready') gameText(g, W, [['NÉON RUSH', '#ff4fa8', 16], ['Clic ou espace pour courir', '#ffffff'], ['← → voies · ↑ saut · ↓ glisse', '#b8a8e0'], ['Panneaux : jaune saute', '#ffd84a'], ['cyan glisse, rouge change', '#3fe0ff'], ['Record ' + (games.best.neonrush || 0), '#ffd84a']], 120);
+  if (nr.mode === 'ready') gameText(g, W, [['NÉON RUSH', '#ff4fa8', 16], ['Clic ou espace pour courir', '#ffffff'], ['← → voies · ↑ saut · ↓ glisse', '#b8a8e0'], ['Laser rouge : saute', '#ff8a8a'], ['Barre jaune : glisse', '#ffd84a'], ['Camion : change de voie', '#3fe0ff'], ['Record ' + (games.best.neonrush || 0), '#ffd84a']], 116);
   if (nr.mode === 'pause') gameText(g, W, [['PAUSE', '#ffffff', 12], ['Espace pour reprendre', '#b8a8e0']], 130);
-  if (nr.mode === 'over' && nr.dead > 20) gameText(g, W, [['BOUM !', '#ff4a5a', 14], ['Score ' + nrScore(), '#ffffff'], [nr.why || '', '#ffb0b8'], ['Pièces ' + nr.got + ' · ' + Math.floor(nr.dist * 3) + ' m', '#ffd84a'], [nr.record ? 'NOUVEAU RECORD !' : 'Record ' + (games.best.neonrush || 0), '#3fe0ff'], [nr.dead > 40 ? 'Espace pour recommencer' : '', '#b8a8e0']], 110);
+  if (nr.mode === 'over' && nr.dead > 20) gameText(g, W, [['BOUM !', '#ff4a5a', 14], ['Score ' + nrScore(), '#ffffff'], [nr.why || '', '#ffb0b8'], ['Pièces ' + nr.got + ' · ' + nrMeters() + ' m', '#ffd84a'], [nr.record ? 'NOUVEAU RECORD !' : 'Record ' + (games.best.neonrush || 0), '#3fe0ff'], [nr.dead > 40 ? 'Espace pour recommencer' : '', '#b8a8e0']], 110);
 }
+const nrBoardImgC = {};
 function nrInfo() {
-  $('nrStats').replaceChildren(...[['Meilleur score', games.best.neonrush || 0], ['Courses', nrs.runs], ['Pièces au total', nrs.coins], ['Plus de pièces en une course', nrs.bestCoins], ['Bonus ramassés', nrs.bonus], ['Distance totale', nrs.meters + ' m']].flatMap(([a, b]) => [el('span', '', a), el('b', '', String(b))]));
+  $('nrStats').replaceChildren(...[['Meilleur score', games.best.neonrush || 0], ['Courses', nrs.runs], ['Pièces au total', nrs.coins], ['Plus de pièces en une course', nrs.bestCoins], ['Bonus ramassés', nrs.bonus], ['Mots du jour trouvés', nrs.hunt.words], ['Distance totale', nrs.meters + ' m']].flatMap(([a, b]) => [el('span', '', a), el('b', '', String(b))]));
+  nrMisUI();
 }
-// la boutique : les personnages à acheter avec les pièces gagnées, puis à choisir
+function nrMisUI() {
+  nrMisSet(); $('nrLvl').textContent = 'Multiplicateur de score : ×' + (nrs.mis.lvl + 1);
+  $('nrMis').replaceChildren(...nrs.mis.set.map(s => { const M = NR_MIS[s.j], row = el('div', 'nrMisRow' + (s.done ? ' done' : '')), bar = el('i', 'nrBar'), fill = el('b', ''); fill.style.width = Math.round(100 * s.p / s.n) + '%'; bar.append(fill);
+    row.append(el('span', '', M[1]), el('span', 'nrNum', s.done ? 'OK' : s.p + ' / ' + s.n), bar); return row; }));
+  const w = nrWord(); $('nrWord').replaceChildren(...[...w].map((ch, i) => el('span', i < nrs.hunt.got ? 'on' : '', ch)));
+}
+// la boutique : personnages et planches à acheter avec les pièces gagnées, puis à choisir
+function nrShopList(box, list, owned, cur, preview, pick) {
+  box.replaceChildren(...list.map(c => {
+    const own = owned.includes(c.id), on = cur === c.id, card = el('div', 'nrChar' + (on ? ' on' : '')), im = preview(c), pv = el('canvas');
+    pv.width = im.width; pv.height = im.height; pv.getContext('2d').drawImage(im, 0, 0); pv.style.width = im.width * 3 + 'px'; pv.style.height = im.height * 3 + 'px';
+    const b = el('button', 'btn' + (own ? '' : ' main'), on ? 'CHOISI' : own ? 'CHOISIR' : 'ACHETER'); b.disabled = on || (!own && nrs.wallet < c.cost);
+    b.onclick = () => { if (!own) { if (nrs.wallet < c.cost) return; nrs.wallet -= c.cost; owned.push(c.id); toast(c.name + ' : à toi !'); nrBeep(990, .3, 'triangle', 1980); } pick(c.id); saveGames(); nrShop(); nrInfo(); };
+    card.append(pv, el('span', '', c.name), el('span', 'nrPow', c.power), el('span', 'nrPrice', own ? 'à toi' : c.cost + ' pièces'), b); return card;
+  }));
+}
 function nrShop() {
   $('nrWallet').textContent = 'Pièces à dépenser : ' + nrs.wallet;
-  $('nrChars').replaceChildren(...NR_CHARS.map(c => {
-    const own = nrs.chars.includes(c.id), on = nrs.char === c.id, box = el('div', 'nrChar' + (on ? ' on' : '')), im = nrSpr(c.id).run, pv = el('canvas');
-    pv.width = im.width; pv.height = im.height; pv.getContext('2d').drawImage(im, 0, 0);
-    const b = el('button', 'btn' + (own ? '' : ' main'), on ? 'CHOISI' : own ? 'CHOISIR' : 'ACHETER'); b.disabled = on || (!own && nrs.wallet < c.cost);
-    b.onclick = () => { if (!own) { if (nrs.wallet < c.cost) return; nrs.wallet -= c.cost; nrs.chars.push(c.id); toast(c.name + ' rejoint la course !'); nrBeep(990, .3, 'triangle', 1980); } nrs.char = c.id; saveGames(); nrShop(); nrInfo(); };
-    box.append(pv, el('span', '', c.name), el('span', 'nrPrice', own ? 'à toi' : c.cost + ' pièces'), b); return box;
-  }));
+  nrShopList($('nrChars'), NR_CHARS, nrs.chars, nrs.char, c => nrSpr(c.id).run[0], id => { nrs.char = id; if (nr?.mode === 'ready') nr.shield = id === 'ninja' ? 1 : 0; });
+  nrShopList($('nrBoards'), NR_BOARDS, nrs.boards, nrs.board, b => nrBoardImgC[b.id] ??= nrBoardImg(b), id => { nrs.board = id; if (nr?.mode === 'ready') nr.jetStart = id === 'fusee'; });
 }
 document.addEventListener('keydown', e => {
   if (!view.classList.contains('on') || !nr || /INPUT|SELECT|TEXTAREA/.test(e.target.tagName) || e.repeat) return;
@@ -644,28 +685,46 @@ document.addEventListener('keydown', e => {
     nrAct(Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 'L' : 'R') : (dy < 0 ? 'U' : 'D')); }; }
 $('nrNew').onclick = () => { nrNew(); $('nrNew').blur(); };
 $('nrFs').onclick = () => { $('nrFs').blur(); try { if (document.fullscreenElement) document.exitFullscreen(); else $('nrCanvas').parentElement.requestFullscreen?.().catch(() => {}); } catch {} };
-function nrCheck() {  // vérification : obstacles, voie libre, bonus (bouclier, planche, aimant), quartiers, boutique, images
-  const keep = nr, realBest = games.best.neonrush, realStats = JSON.stringify(nrs), bad = [], obs = () => [{type: 'barrier', lane: 1, z: NR.PZ + .1, len: .35, vz: 0}];
-  nr = null; nrNew(); nr.mode = 'play'; nr.obs = obs(); nrUpdate(); if (!(nr.mode === 'over' && nr.why === NR_WHY.barrier)) bad.push('la barrière ne tue pas');
-  nrNew(); nr.mode = 'play'; nr.obs = obs(); nr.e = 40; nr.ve = 1; nrUpdate(); if (nr.mode !== 'play') bad.push('le saut ne passe pas la barrière');
-  nrNew(); for (let i = 0; i < 200; i++) nrRow(NR.FAR); if ([0, 1, 2].every(l => nr.obs.some(o => o.type === 'train' && o.lane === l && o.z === NR.FAR))) bad.push('trois métros de front');
-  nrNew(); nr.mode = 'play'; nr.shield = 900; nr.obs = obs(); nrUpdate(); if (nr.mode !== 'play' || nr.shield) bad.push('le bouclier ne protège pas');
-  for (let t = 0; t < 10; t++) nrUpdate(); if (nr.mode !== 'play') bad.push('pas de répit après le bouclier');
-  nrNew(); nr.mode = 'play'; nr.board = 900; nr.obs = [{type: 'train', lane: 1, z: NR.PZ - .1, len: 4, vz: 0}]; for (let t = 0; t < 30; t++) nrUpdate(); if (nr.mode !== 'play' || nr.board) bad.push('la planche ne protège pas');
-  nrNew(); nr.mode = 'play'; nr.board = 900; nrAct('U'); if (nr.ve !== 9.4) bad.push('la planche ne fait pas sauter plus haut');
-  nrNew(); nr.mode = 'play'; nr.mag = 600; nr.coins = [{lane: 0, z: NR.PZ + 1.2, e: 0}, {lane: 2, z: NR.PZ + 2, e: 0}]; for (let t = 0; t < 40; t++) nrUpdate(); if (nr.got !== 2) bad.push('l\'aimant n\'attire pas (' + nr.got + ')');
-  nrNew(); nr.mode = 'play'; nr.items = [{type: 'shield', lane: 1, z: NR.PZ + .1}]; nrUpdate(); if (!nr.shield) bad.push('le bonus ne se ramasse pas');
-  if ([0, 400, 800, 1200, 1600].map(m => nrD(m / 3 + .01)).join() !== '0,1,2,3,0') bad.push('quartiers : ' + [0, 400, 800, 1200, 1600].map(m => nrD(m / 3 + .01)).join());
-  nrNew(); nr.mode = 'play'; nr.dist = NR.DIST / 3 - NR.PZ - .05; nrUpdate(); if (nr.district !== 1 || !nr.banner) bad.push('le changement de quartier ne s\'affiche pas');
-  for (const c of NR_CHARS) { const s = nrSpr(c.id); if (Object.values(s).some(im => im.width !== 12 || im.height < 12)) bad.push('images de ' + c.name); }
-  for (const rows of [NR_RUN, NR_PASS, NR_JUMP, NR_DUCK, ...NR_CHARS.map(c => c.top.concat(c.head0 ? [c.head0] : []))]) if (rows.some(r => r.length !== 12)) bad.push('largeur des images');
+const nrMusBtn = () => { $('nrMus').textContent = 'MUSIQUE : ' + (nrs.music ? 'OUI' : 'NON'); };
+$('nrMus').onclick = () => { nrs.music = !nrs.music; saveGames(); nrMusBtn(); $('nrMus').blur(); }; nrMusBtn();
+function nrCheck() {  // vérification : perspective, obstacles, voie libre, bonus, planche, bouclier, missions, chasse du jour, rangées calées sur le temps, boutique
+  const keep = nr, realBest = games.best.neonrush, realStats = JSON.stringify(nrs), bad = [], one = (type, extra = {}) => { nrNew(); nr.mode = 'play'; nr.boardOn = false; nr.shield = 0; nr.noRows = true; nr.obs = [{type, lane: 1, z: NR.PZ + .5, len: type === 'block' ? 40 : 2, vz: 0}]; Object.assign(nr, extra); nrUpdate(); return nr.mode; };
+  nrMute = true; nr = null; nrNew(); if (Math.abs(nrSY(0, NR.PZ) - 257.5) > 1 || Math.abs(nrSX(NR.LW, NR.PZ) - nrSX(0, NR.PZ) - 64) > 1) bad.push('perspective');
+  if (one('gate') !== 'over' || nr.why !== NR_WHY.gate) bad.push('le laser ne tue pas'); if (one('gate', {e: 12, ve: .5}) !== 'play') bad.push('le saut ne passe pas le laser');
+  if (one('beam') !== 'over') bad.push('la barre ne tue pas'); if (one('beam', {duck: 30}) !== 'play') bad.push('la glissade ne passe pas la barre');
+  if (one('block', {e: 30, ve: 0}) !== 'over') bad.push('le camion ne tue pas'); if (one('block', {jet: 200, e: NR.JET}) !== 'play') bad.push('le jetpack ne passe pas au-dessus');
+  if (one('block', {boardOn: true}) !== 'play' || nr.boardOn) bad.push('la planche ne sauve pas'); for (let i = 0; i < 20; i++) nrUpdate(); if (nr.mode !== 'play') bad.push('pas de répit après la planche');
+  if (one('gate', {shield: 1, boardOn: true}) !== 'play' || nr.shield || !nr.boardOn) bad.push('le bouclier passe avant la planche');
+  nrNew(); for (let i = 0; i < 300; i++) nrRow(NR.FAR); if ([0, 1, 2].every(l => nr.obs.some(o => o.type === 'block' && o.lane === l && o.z === NR.FAR))) bad.push('trois camions de front');
+  nrNew(); nr.mode = 'play'; nr.boardOn = false; nr.mag = 600; nr.noRows = true; nr.coins = [{lane: 0, z: NR.PZ + 20, h: 0}, {lane: 2, z: NR.PZ + 30, h: 0}]; for (let t = 0; t < 80; t++) nrUpdate(); if (nr.got !== 2) bad.push('l\'aimant n\'attire pas (' + nr.got + ')');
+  nrNew(); nr.mode = 'play'; nr.x2 = 100; nr.noRows = true; nr.coins = [{lane: 1, z: NR.PZ + .3, h: 0}]; nrUpdate(); if (nr.got !== 2) bad.push('pièces ×2');
+  nrNew(); nr.mode = 'play'; nr.noRows = true; nr.items = [{type: 'jet', lane: 1, z: NR.PZ + .3}]; nrUpdate(); if (!nr.jet) bad.push('le jetpack ne se ramasse pas'); for (let t = 0; t < 120; t++) nrUpdate(); if (Math.abs(nr.e - NR.JET) > 3) bad.push('le jetpack ne vole pas (' + Math.round(nr.e) + ')');
+  // les rangées arrivent sur un temps fort
+  nrNew(); nr.mode = 'play'; nr.boardOn = false; nr.inv = 1e9; let arr = [];
+  for (let t = 0; t < 900; t++) { nrUpdate(); for (const o of nr.obs) { o.born ??= nr.t; if (!o.hit && o.vz === 0 && o.z <= NR.PZ) { o.hit = true; arr.push(nr.t); } } }
+  if (!arr.length || arr.some(t => { const k = t % NR.BEAT; return Math.min(k, NR.BEAT - k) > 2; })) bad.push('rangées pas calées sur le temps : ' + arr.slice(0, 5).map(t => t % NR.BEAT));
+  // les personnages : double saut de Kiki, bouclier du Ninja ; la planche ressort saute plus haut
+  nrs.char = 'kiki'; nrNew(); nr.mode = 'play'; nrAct('U'); nrUpdate(); nrAct('U'); if (!nr.dj || nr.ve !== 2.4) bad.push('double saut');
+  nrs.char = 'neo'; nrNew(); nr.mode = 'play'; nrAct('U'); nrUpdate(); const v1 = nr.ve; nrAct('U'); if (nr.ve !== v1) bad.push('saut en l\'air sans pouvoir');
+  nrs.char = 'ninja'; nrNew(); if (nr.shield !== 1) bad.push('bouclier du ninja'); nrs.char = 'neo';
+  nrs.board = 'ressort'; nrNew(); nr.mode = 'play'; nrAct('U'); if (nr.ve !== 3.05) bad.push('planche ressort'); nrs.board = 'bois';
+  // les missions : trois, différentes ; les trois réussies, le multiplicateur monte
+  nrs.mis = {lvl: 0, set: null}; nrNew(); nr.mode = 'play'; nrMisSet(); const ks = nrs.mis.set.map(s => NR_MIS[s.j][0]); if (new Set(ks).size !== 3) bad.push('missions');
+  for (const s of nrs.mis.set) { const M = NR_MIS[s.j]; nrMis(M[0], M[4] ? s.n : s.n); } if (nrs.mis.lvl !== 1 || nrs.mis.set.some(s => s.done)) bad.push('multiplicateur ' + nrs.mis.lvl);
+  nr.got = 0; nr.dist = 400; if (nrScore() !== 200) bad.push('score ×2 : ' + nrScore());
+  // la chasse du jour : une lettre ramassée avance le mot ; le mot complet rapporte 300 pièces
+  nrs.hunt = {day: nrDay(), got: 0, words: 0}; const w = nrWord(); nrs.wallet = 0; nrNew(); nr.mode = 'play'; nr.noRows = true;
+  for (let i = 0; i < w.length; i++) { nr.letters = [{lane: 1, z: NR.PZ + .3, ch: w[i]}]; nrUpdate(); } if (nrs.hunt.got !== w.length || nrs.wallet !== 300 || nrs.hunt.words !== 1) bad.push('chasse du jour ' + nrs.hunt.got + ' ' + nrs.wallet);
+  nrNew(); nr.mode = 'play'; nr.noRows = true; nr.dist = 1000; nr.letterAt = 0; nrUpdate(); if (nr.letters.length) bad.push('lettre après le mot complet');
+  for (const c of NR_CHARS) { const s = nrSpr(c.id); if ([...s.run, s.jump, s.duck].some(im => im.width !== 12 || im.height !== 18)) bad.push('images de ' + c.name); }
+  if ([...NR_BACK, ...NR_LEGS.flat(), ...NR_TUCK, ...NR_DUCK, ...NR_CHARS.flatMap(c => c.top)].some(r => r.length !== 12)) bad.push('largeur des images');
   nrs.wallet = 160; nrs.chars = ['neo']; nrs.char = 'neo';
   const buy = id => { const c = NR_CHARS.find(c => c.id === id); if (nrs.wallet >= c.cost) { nrs.wallet -= c.cost; nrs.chars.push(id); nrs.char = id; return true; } return false; };
   if (!buy('kiki') || nrs.wallet !== 10 || buy('robo') || nrs.char !== 'kiki') bad.push('la boutique compte mal');
-  if (realBest === undefined) delete games.best.neonrush; else games.best.neonrush = realBest; Object.assign(nrs, JSON.parse(realStats));
-  nr = keep; return bad.length ? bad.join(', ') : 'ok';
+  if (realBest === undefined) delete games.best.neonrush; else games.best.neonrush = realBest; const real = JSON.parse(realStats); for (const k of Object.keys(nrs)) if (!(k in real)) delete nrs[k]; Object.assign(nrs, real);
+  nr = keep; nrMute = false; return bad.length ? bad.join(', ') : 'ok';
 }
-{ const r = nrCheck(); console.assert(r === 'ok', 'neonrush', r); $('nrCanvas').__nr = {st: () => nr, check: nrCheck, act: nrAct, give: k => { nr[k] = NR_BONUS[k].time; }, go: m => { nr.dist = m / 3; }, shop: nrShop}; }
+{ const r = nrCheck(); console.assert(r === 'ok', 'neonrush', r); $('nrCanvas').__nr = {st: () => nr, check: nrCheck, act: nrAct, give: k => { nr[k] = NR_BONUS[k].time; }, go: m => { nr.dist = m * 4; }, shop: nrShop, nrs}; }
 ctx.onOpen(() => {
   if (!nr || !nr.g) { nrNew(); nr.g = $('nrCanvas').getContext('2d'); }
   gameLoop(nr, 'neonrush', nrUpdate, nrDraw); nrInfo(); nrShop();
