@@ -326,6 +326,9 @@ export default async function (ctx) {
   const saveGames = () => { clearTimeout(gamesTimer); gamesTimer = setTimeout(() => { gamesTimer = null; folder.write('games', games).catch(() => {}); }, 500); };
   const best = (k, v) => { const b = games.best[k]; if (b == null || v > b) { games.best[k] = v; saveGames(); return true; } return false; };
   const gstore = (k, init) => (games[k] ??= init);
+  // les trophées de NeoDex (3.4.8 et plus) : succès et records déclarés dans plugin.json ; sur un NeoDex plus ancien, rien ne se passe
+  const trophy = id => { ctx.games?.unlock(id).catch(() => {}); };
+  const trophyRecord = (id, v) => { if (v != null && Number.isFinite(+v)) ctx.games?.record(id, +v).catch(() => {}); };
 function gameLoop(st, appKey, update, draw) {
   cancelAnimationFrame(st.raf);
   const STEP = 1000 / 60; let acc = 0, last = performance.now();
@@ -483,7 +486,7 @@ const nrScore = () => Math.floor(nrMeters() * (nrs.mis.lvl + 1) * (nrs.char === 
 function nrHit() {
   nr.mode = 'over'; nr.shake = 14; nr.dead = 0; nrBeep(160, .4, 'sawtooth', 40);
   const score = nrScore(); nr.record = best('neonrush', score); nrMis('score', score); nrMis('meters', nrMeters());
-  nrs.coins += nr.got; nrs.wallet += nr.got; nrs.bestCoins = Math.max(nrs.bestCoins, nr.got); nrs.meters += nrMeters(); saveGames(); nrInfo(); nrShop();
+  nrs.coins += nr.got; nrs.wallet += nr.got; nrs.bestCoins = Math.max(nrs.bestCoins, nr.got); nrs.meters += nrMeters(); nrs.bestMeters = Math.max(nrs.bestMeters || 0, nrMeters()); saveGames(); nrInfo(); nrShop();
 }
 function nrUpdate() {
   if (nr.shake) nr.shake--;
@@ -648,6 +651,7 @@ function nrDraw() {
 }
 const nrBoardImgC = {};
 function nrInfo() {
+  setTimeout(nrTrophies);
   $('nrStats').replaceChildren(...[['Meilleur score', games.best.neonrush || 0], ['Courses', nrs.runs], ['Pièces au total', nrs.coins], ['Plus de pièces en une course', nrs.bestCoins], ['Bonus ramassés', nrs.bonus], ['Mots du jour trouvés', nrs.hunt.words], ['Distance totale', nrs.meters + ' m']].flatMap(([a, b]) => [el('span', '', a), el('b', '', String(b))]));
   nrMisUI();
 }
@@ -725,6 +729,13 @@ function nrCheck() {  // vérification : perspective, obstacles, voie libre, bon
   nr = keep; nrMute = false; return bad.length ? bad.join(', ') : 'ok';
 }
 { const r = nrCheck(); console.assert(r === 'ok', 'neonrush', r); $('nrCanvas').__nr = {st: () => nr, check: nrCheck, act: nrAct, give: k => { nr[k] = NR_BONUS[k].time; }, go: m => { nr.dist = m * 4; }, shop: nrShop, nrs}; }
+// les trophées, tirés des statistiques et des records gardés (aussi à l'ouverture : ce qui a été fait avant compte)
+function nrTrophies() {
+  const b = games.best.neonrush, x = nrs.mis.lvl + 1, sig = [b, nrs.runs, nrs.meters, nrs.coins, nrs.bestCoins, x, nrs.hunt.words].join(); if (sig === nrTrophies.sig) return; nrTrophies.sig = sig;
+  trophyRecord('score', b || null); trophyRecord('pieces', nrs.bestCoins || null);
+  if (nrs.runs >= 1) trophy('premier'); if (nrs.bestMeters >= 1000) trophy('km1'); if (nrs.meters >= 50000) trophy('km50');
+  if (nrs.bestCoins >= 100) trophy('pieces100'); if (nrs.coins >= 5000) trophy('pieces'); if (x >= 5) trophy('multi5'); if (x >= 10) trophy('multi10'); if (nrs.hunt.words >= 10) trophy('mots');
+}
 ctx.onOpen(() => {
   if (!nr || !nr.g) { nrNew(); nr.g = $('nrCanvas').getContext('2d'); }
   gameLoop(nr, 'neonrush', nrUpdate, nrDraw); nrInfo(); nrShop();

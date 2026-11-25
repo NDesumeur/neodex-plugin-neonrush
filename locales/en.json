@@ -198,5 +198,21 @@
  "COMET": "COMET",
  "NIGHT": "NIGHT",
  "ORBIT": "ORBIT",
- "VOLT": "VOLT"
+ "VOLT": "VOLT",
+ "Plein gaz": "Full throttle",
+ "Finir une première course": "Finish your first run",
+ "Autoroute": "Highway",
+ "Parcourir 1 kilomètre d'un coup": "Run 1 kilometre in one go",
+ "Grand rouleur": "Long hauler",
+ "Parcourir 50 kilomètres en tout": "Run 50 kilometres in total",
+ "Rafle": "Haul",
+ "Ramasser 100 pièces en une course": "Collect 100 coins in one run",
+ "Fortune néon": "Neon fortune",
+ "Ramasser 5 000 pièces en tout": "Collect 5,000 coins in total",
+ "Multiplicateur ×5": "Multiplier ×5",
+ "Atteindre le multiplicateur ×5 avec les missions": "Reach the ×5 multiplier with missions",
+ "Synthwave": "Synthwave",
+ "Atteindre le multiplicateur ×10 avec les missions": "Reach the ×10 multiplier with missions",
+ "Chasseur de mots": "Word hunter",
+ "Trouver 10 mots du jour": "Find 10 words of the day"
 }

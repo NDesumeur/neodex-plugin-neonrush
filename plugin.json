@@ -1,7 +1,7 @@
 {
   "id": "neodex.neonrush",
   "name": "Néon Rush",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "author": "NDesumeur",
   "description": "Course sans fin sur une autoroute synthwave à trois voies, sous un grand soleil rayé : saute les lasers, glisse sous les barres, change de voie devant les camions (certains foncent vers toi). Les obstacles arrivent sur le temps de la musique synthwave. Trois missions à la fois qui font monter ton multiplicateur de score ; bonus aimant, jetpack et pièces ×2 ; une chasse aux lettres chaque jour ; cinq personnages et quatre planches, chacun avec son pouvoir, à acheter avec tes pièces ; clavier, souris ou glissé au doigt ; plein écran.",
   "icon": "icon.png",
@@ -22,5 +22,62 @@
   "sdk": "2.1.0",
   "permissions": [
     "storage"
+  ],
+  "succes": [
+    {
+      "id": "premier",
+      "nom": "Plein gaz",
+      "texte": "Finir une première course"
+    },
+    {
+      "id": "km1",
+      "nom": "Autoroute",
+      "texte": "Parcourir 1 kilomètre d'un coup"
+    },
+    {
+      "id": "km50",
+      "nom": "Grand rouleur",
+      "texte": "Parcourir 50 kilomètres en tout"
+    },
+    {
+      "id": "pieces100",
+      "nom": "Rafle",
+      "texte": "Ramasser 100 pièces en une course"
+    },
+    {
+      "id": "pieces",
+      "nom": "Fortune néon",
+      "texte": "Ramasser 5 000 pièces en tout"
+    },
+    {
+      "id": "multi5",
+      "nom": "Multiplicateur ×5",
+      "texte": "Atteindre le multiplicateur ×5 avec les missions"
+    },
+    {
+      "id": "multi10",
+      "nom": "Synthwave",
+      "texte": "Atteindre le multiplicateur ×10 avec les missions",
+      "cache": true
+    },
+    {
+      "id": "mots",
+      "nom": "Chasseur de mots",
+      "texte": "Trouver 10 mots du jour"
+    }
+  ],
+  "records": [
+    {
+      "id": "score",
+      "nom": "Meilleur score",
+      "sens": "haut",
+      "format": "nombre"
+    },
+    {
+      "id": "pieces",
+      "nom": "Plus de pièces en une course",
+      "sens": "haut",
+      "format": "nombre"
+    }
   ]
 }
